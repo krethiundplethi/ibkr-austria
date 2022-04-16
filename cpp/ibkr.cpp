@@ -1,10 +1,13 @@
-#include <iostream>
 
 #include "currency.hpp"
 #include "security.hpp"
 #include "tranche.hpp"
+#include "ledger.hpp"
+#include "ibkr_parser.hpp"
 
 #include "CLI11.hpp"
+
+#include <iostream>
 
 using namespace std;
 using namespace ibkr;
@@ -31,6 +34,23 @@ int main(int argc, char **argv)
 	cout << tranche1 << endl;
 	//cout << tranche2 << endl;
 	//cout << tranche3 << endl;
+
+	ledger l("gazprom");
+
+	time_t rawtime;
+	struct tm * ptm;
+	time(&rawtime);
+	ptm = gmtime(&rawtime);
+
+	l.add_entry(entry::type::CREDIT, *ptm, tranche1);
+	l.add_entry(entry::type::CREDIT, *ptm, tranche1);
+
+	cout << l << endl;
+
+	ibkr_parser parser(filename);
+	parser.parse();
+
+	cout.flush();
 
 	return 0;
 }

@@ -33,10 +33,7 @@ public:
 	inline const security &getSecurity() const { return sec; }
 	inline const currency::price &getFee() const { return fee; }
 
-	~tranche()
-	{
-		std::cout << " #tranche# ";
-	};
+	~tranche() { };
 
 private:
 	const security &sec;

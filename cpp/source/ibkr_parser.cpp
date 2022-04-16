@@ -17,7 +17,7 @@ namespace ibkr {
 
 using namespace std;
 
-const char *csv_delimiter = ",";
+const char csv_delimiter = ',';
 
 
 
@@ -45,7 +45,7 @@ void vectorize(const string &s, vector <string> &result, std::tm &tm)
 	string temp;
 	bool escaped = false;
 
-	while(getline(ss, token, ','))
+	while(getline(ss, token, csv_delimiter))
 	{
 		if (escaped && (token[token.length()-1] == '\"'))
 		{

@@ -5,16 +5,16 @@
  *      Author: AndreasFellnhofer
  */
 
-#include "depot.h"
+#include "ledger.hpp"
 
 namespace ibkr {
 
-depot::depot() {
+ledger::ledger() {
 	// TODO Auto-generated constructor stub
 
 }
 
-depot::~depot() {
+ledger::~ledger() {
 	// TODO Auto-generated destructor stub
 }
 

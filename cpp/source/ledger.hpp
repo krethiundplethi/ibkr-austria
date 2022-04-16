@@ -5,15 +5,15 @@
  *      Author: AndreasFellnhofer
  */
 
-#ifndef SOURCE_DEPOT_H_
-#define SOURCE_DEPOT_H_
+#ifndef SOURCE_LEDGER_H_
+#define SOURCE_LEDGER_H_
 
 namespace ibkr {
 
-class depot {
+class ledger {
 public:
-	depot();
-	virtual ~depot();
+	ledger();
+	virtual ~ledger();
 };
 
 } /* namespace ibkr */

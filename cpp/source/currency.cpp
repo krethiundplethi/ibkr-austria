@@ -5,7 +5,7 @@
  *      Author: AndreasFellnhofer
  */
 
-#include "currency.h"
+#include "currency.hpp"
 
 namespace ibkr
 {
@@ -18,6 +18,14 @@ std::ostream &operator<<(std::ostream &os, const currency::price &p)
 	os << p.value << " " << p.unit.name;
 	return os;
 }
+
+
+std::ostream &operator<<(std::ostream &os, const currency::unit &u)
+{
+	os << " " << u.name;
+	return os;
+}
+
 
 
 }

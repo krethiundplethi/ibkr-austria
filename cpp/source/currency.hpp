@@ -39,10 +39,11 @@ struct price
 };
 
 std::ostream &operator<<(std::ostream &, const currency::price &);
+std::ostream &operator<<(std::ostream &, const currency::unit &);
 
 
 constexpr struct unit EUR = { symbol::EUR, "EUR" };
-constexpr struct unit USD = { symbol::USD, "EUR" };
+constexpr struct unit USD = { symbol::USD, "USD" };
 
 
 }

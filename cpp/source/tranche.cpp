@@ -5,9 +5,9 @@
  *      Author: AndreasFellnhofer
  */
 
-#include "tranche.h"
-#include "security.h"
-#include "currency.h"
+#include "tranche.hpp"
+#include "security.hpp"
+#include "currency.hpp"
 
 namespace ibkr
 {

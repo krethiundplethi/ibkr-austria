@@ -11,8 +11,8 @@
 #define SOURCE_TRANCHE_H_
 
 #include <iostream>
-#include "security.h"
-#include "currency.h"
+#include "security.hpp"
+#include "currency.hpp"
 
 
 namespace ibkr

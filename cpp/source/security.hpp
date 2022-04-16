@@ -8,7 +8,7 @@
 #ifndef SOURCE_SECURITY_H_
 #define SOURCE_SECURITY_H_
 
-#include "currency.h"
+#include "currency.hpp"
 
 namespace ibkr
 {

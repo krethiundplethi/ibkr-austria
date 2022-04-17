@@ -6,6 +6,7 @@
  */
 
 #include "ibkr_parser.hpp"
+#include "currency.hpp"
 #include "ledger.hpp"
 #include <iostream>
 #include <iterator>
@@ -17,19 +18,41 @@ namespace ibkr {
 
 using namespace std;
 
-const char csv_delimiter = ',';
 
+namespace csv {
+const char delimiter = ',';
 
+namespace trades {
 
-trade_type parse_trade_type(string &s)
+enum col
 {
-	trade_type result = trade_type::UNKNOWN;
+	CLASS = 3,
+	CURRENCY = 4,
+	SYMBOL = 5,
+	DATE = 6,
+	AMOUNT = 7,
+	PRICE = 8,
+	COSTN = 9,
+	FEE = 10,
+	COSTG = 11,
+	PNL = 12
+};
 
-	for (int i = 0; i < sizeof(trade_parse)/sizeof(trade_parse)[0]; ++i)
+}
+}
+
+
+
+template <typename T>
+inline decltype(T::id) match_to_id(string &s, const T *array_of_structs, size_t n)
+{
+	decltype(T::id) result = decltype(T::id)::UNKNOWN;
+
+	for (int i = 0; i < n; ++i)
 	{
-		if (!s.compare(trade_parse[i].match))
+		if (!s.compare(array_of_structs[i].name))
 		{
-			result = trade_parse[i].t;
+			result = array_of_structs[i].id;
 		}
 	}
 
@@ -45,13 +68,13 @@ void vectorize(const string &s, vector <string> &result, std::tm &tm)
 	string temp;
 	bool escaped = false;
 
-	while(getline(ss, token, csv_delimiter))
+	while (getline(ss, token, csv::delimiter))
 	{
-		if (escaped && (token[token.length()-1] == '\"'))
+		if (escaped && (token[token.length() - 1] == '\"'))
 		{
 			temp += token;
-			escaped = false;
 			result.push_back(temp.substr(1, temp.length() - 2));
+			escaped = false;
 		}
 		else if (escaped)
 		{
@@ -94,11 +117,29 @@ void ibkr_parser::parse(void)
 		    copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
 		    cout << endl;
 
-		    switch (parse_trade_type(v[3]))
+		    switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
 		    {
-		    	case trade_type::STOCKS: cout << "STONK" << endl; break;
-		    	case trade_type::FOREX: cout << "CASH " << endl; break;
-		    	case trade_type::OPTIONS: cout << "OPTI" << endl; break;
+		    	case trade::type::STOCKS:
+		    		if (cbk_stock)
+		    		{
+		    			currency::price p = {currency::USD, 1.2};
+		    			auto id = match_to_id<const currency::unit>(v[csv::trades::col::CURRENCY],
+		    					currency::match, sizeof(currency::match)/sizeof(currency::match[0])
+								);
+		    			p.unit = currency::from_symbol(id);
+		    			p.value = stof(v[csv::trades::col::PRICE]);
+		    			security aktie(v[csv::trades::col::SYMBOL].c_str(),  p);
+		    			p.value = stof(v[csv::trades::col::COSTN]);
+		    			int amount = stoi(v[csv::trades::col::AMOUNT]);
+		    			tranche tranche1(aktie, amount, p, {currency::USD, stof(v[csv::trades::col::FEE])}, false);
+		    			if (amount < 0) tranche1.setType(tranche::SELL);
+	    				tranche1.makeAbsolute();
+		    			cbk_stock(tranche1);
+			    		cout << "STONK" << tranche1 << endl;
+		    		}
+		    		break;
+		    	case trade::type::FOREX: cout << "CASH " << endl; break;
+		    	case trade::type::OPTIONS: cout << "OPTI" << endl; break;
 		    	default: cout << "NAN!" << endl; break;
 		    }
 		}

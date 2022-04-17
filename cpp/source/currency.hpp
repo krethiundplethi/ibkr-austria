@@ -21,22 +21,27 @@ enum class symbol {
 	USD,
 	AUD,
 	CAD,
-	RUB
+	RUB,
+	UNKNOWN
 };
 
 
 struct unit
 {
-	const symbol id;
+	symbol id;
 	const char *name;
 };
 
 
 struct price
 {
-	const struct unit unit;
+	struct unit unit;
 	float value;
 };
+
+
+unit from_symbol(const symbol s);
+
 
 std::ostream &operator<<(std::ostream &, const currency::price &);
 std::ostream &operator<<(std::ostream &, const currency::unit &);
@@ -44,7 +49,9 @@ std::ostream &operator<<(std::ostream &, const currency::unit &);
 
 constexpr struct unit EUR = { symbol::EUR, "EUR" };
 constexpr struct unit USD = { symbol::USD, "USD" };
+constexpr struct unit UNKNOWN = { symbol::UNKNOWN, "UNKNOWN" };
 
+constexpr struct unit match[] = { EUR, USD };
 
 }
 } /* namespace ibkr */

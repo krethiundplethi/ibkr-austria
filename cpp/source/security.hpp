@@ -21,7 +21,7 @@ public:
 	};
 
 	security() = delete;
-	security(const char *name, const currency::price &price)
+	security(const char *name, const currency::price price)
 		: name {name}, price {price} {}
 
 	inline const currency::price &getPrice() const { return price; }
@@ -31,7 +31,7 @@ public:
 	~security() {};
 private:
 	const char *name;
-	const currency::price &price;
+	const currency::price price;
 };
 
 std::ostream &operator<<(std::ostream &, const security &);

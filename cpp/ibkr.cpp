@@ -13,6 +13,12 @@ using namespace std;
 using namespace ibkr;
 
 
+void cbk_stock(tranche tr)
+{
+	;
+}
+
+
 int main(int argc, char **argv)
 {
     CLI::App app{"Tax calc"};
@@ -48,6 +54,7 @@ int main(int argc, char **argv)
 	cout << l << endl;
 
 	ibkr_parser parser(filename);
+	parser.register_callback_on_stock(cbk_stock);
 	parser.parse();
 
 	cout.flush();

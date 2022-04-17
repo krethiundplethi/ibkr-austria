@@ -13,6 +13,22 @@ namespace currency
 {
 
 
+unit from_symbol(const symbol s)
+{
+	unit u = UNKNOWN;
+
+	for (int i = 0; i < sizeof(match) / sizeof(match[0]); ++i)
+	{
+		if (match[i].id == s)
+		{
+			u = match[i];
+		}
+	}
+
+	return u;
+}
+
+
 std::ostream &operator<<(std::ostream &os, const currency::price &p)
 {
 	os << p.value << " " << p.unit.name;

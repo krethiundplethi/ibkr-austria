@@ -8,6 +8,8 @@
 #ifndef SOURCE_IBKR_PARSER_HPP_
 #define SOURCE_IBKR_PARSER_HPP_
 
+#include "tranche.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -16,8 +18,8 @@
 
 namespace ibkr {
 
-
-enum class trade_type {
+namespace trade {
+enum class type {
 	STOCKS,
 	FOREX,
 	OPTIONS,
@@ -25,33 +27,38 @@ enum class trade_type {
 };
 
 
-struct trade_parse_s {
-	const trade_type t;
-	const char *match;
+struct unit {
+	type id;
+	const char *name;
 };
 
-
-constexpr trade_parse_s trade_parse[] =
+constexpr unit match[] =
 {
-	{ trade_type::STOCKS, "Stocks" },
-	{ trade_type::FOREX, "Forex" },
-	{ trade_type::OPTIONS, "Equity and Index Options" },
+	{ trade::type::STOCKS, "Stocks" },
+	{ trade::type::FOREX, "Forex" },
+	{ trade::type::OPTIONS, "Equity and Index Options" },
 };
 
+}
+
+typedef void (*callback_function)(tranche tr);
 
 class ibkr_parser {
 
 public:
 	ibkr_parser() = delete;
-	ibkr_parser(std::string fname) : fname{fname}, istream(fname) {};
+	ibkr_parser(std::string fname) : fname{fname}, istream(fname) { cbk_stock = nullptr; };
 
 	void parse(void);
+
+	void register_callback_on_stock(callback_function cbk) { cbk_stock = cbk; };
 
 	virtual ~ibkr_parser() {};
 
 private:
 	std::string fname;
 	std::ifstream istream;
+	callback_function cbk_stock;
 };
 
 } /* namespace ibkr */

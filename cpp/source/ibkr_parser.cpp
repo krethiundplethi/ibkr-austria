@@ -14,6 +14,7 @@
 #include <ctime>
 #include <iomanip>
 
+
 namespace ibkr {
 
 using namespace std;
@@ -21,6 +22,8 @@ using namespace std;
 
 namespace csv {
 const char delimiter = ',';
+const char delimiter_inner = ' ';
+
 
 namespace trades {
 
@@ -38,8 +41,25 @@ enum col
 	PNL = 12
 };
 
-}
-}
+} /* ns trades */
+
+
+namespace forex {
+
+enum col
+{
+	CLASS = 4,
+	DATE = 5,
+	CURRENCY = 6,
+	AMOUNT = 7,
+	PRICEG = 8,
+	PRICEN = 9,
+	FEE = 10,
+};
+
+} /* ns forex */
+
+} /* ns csv */
 
 
 
@@ -60,7 +80,7 @@ inline decltype(T::id) match_to_id(string &s, const T *array_of_structs, size_t 
 }
 
 
-void vectorize(const string &s, vector <string> &result, std::tm &tm)
+void vectorize(const string &s, vector <string> &result)
 {
 	auto ss = stringstream(s);
 
@@ -90,9 +110,28 @@ void vectorize(const string &s, vector <string> &result, std::tm &tm)
 			result.push_back(token);
 		}
 	}
+}
 
-	std::stringstream ss2(result[6]);
-	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+void vectorize_inner(const string &s, vector <string> &result)
+{
+	auto ss = stringstream(s);
+
+	string token;
+
+	while (getline(ss, token, csv::delimiter_inner))
+	{
+		result.push_back(token);
+	}
+}
+
+
+currency::unit currency_from_vector(vector <string> &v, size_t col)
+{
+	auto id = match_to_id<const currency::unit>(v[col],
+			currency::match, sizeof(currency::match)/sizeof(currency::match[0])
+			);
+	return currency::from_symbol(id);
 }
 
 
@@ -100,51 +139,129 @@ void ibkr_parser::parse(void)
 {
 	string line;
 	timepoint tp;
-	std::tm tm;
 	bool isTrade = false;
 	bool isForex = false;
 
-	cout << "file:";
+	int temp_cnt = 0;
+
 	while (getline(istream, line))
 	{
-		isTrade = line.rfind("Trades,Data,Order", 0) == 0;
-		isForex = line.rfind("Forex P/L Details,Data,", 0) == 0;
-		if (isTrade)
-		{
-			vector <string> v;
-		    cout << line << endl;
-		    vectorize(line, v, tm);
-		    copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
-		    cout << endl;
+    	std::tm tm; /* timestamp of each entry */
 
-		    switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
+		isTrade = line.rfind("Trades,Data,Order", 0) == 0;
+		isForex = line.rfind("Forex P/L Details,Data,Forex", 0) == 0;
+
+		vector <string> v;
+
+	    if (isTrade || isForex)
+	    {
+		    cout << line << endl;
+	    	vectorize(line, v);
+	    	copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
+	    	cout << endl;
+	    }
+
+	    if (isTrade)
+		{
+	    	std::stringstream ss2(v[csv::trades::col::DATE]);
+	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+	    	switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
 		    {
 		    	case trade::type::STOCKS:
-		    		if (cbk_stock)
+		    	{
+					currency::price price = {currency::USD, 0.0};
+					price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
+					price.value = stof(v[csv::trades::col::PRICE]);
+					const security aktie(v[csv::trades::col::SYMBOL].c_str(),  price);
+
+					int amount = stoi(v[csv::trades::col::AMOUNT]);
+					currency::price fee = {currency::USD, stof(v[csv::trades::col::FEE])};
+					price.value = stof(v[csv::trades::col::COSTN]);
+
+					auto p_tranche = std::make_unique<tranche>(aktie, amount, price, fee, false);
+					if (amount < 0) p_tranche->setType(tranche::SELL);
+					p_tranche->makeAbsolute();
+					if (cbk_stock)
+					{
+						cbk_stock(tm, p_tranche);
+					}
+		    	}break;
+
+		    	case trade::type::FOREX:
+		    	{
+					auto currency = currency_from_vector(v, csv::trades::col::CURRENCY);
+					currency::price price = {
+							currency,
+							stof(v[csv::forex::col::AMOUNT]) / stof(v[csv::forex::col::PRICEG])
+					};
+					security cash(v[csv::forex::col::CLASS].c_str(), price);
+
+
+					currency::price fee = {currency, stof(v[csv::forex::col::FEE])};
+					price.value = stof(v[csv::forex::col::PRICEN]);
+					int amount = stoi(v[csv::forex::col::AMOUNT]);
+
+					vector <string> iv;
+					vectorize_inner(v[csv::forex::col::CLASS], iv);
+
+					auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
+					if (amount < 0) tr->setType(tranche::SELL);
+					tr->makeAbsolute();
+					if (cbk_forex)
+					{
+						cbk_forex(tm, tr);
+					}
+					cout << "CASH " << *tr << endl;
+		    	}break;
+
+		    	case trade::type::OPTIONS:
+		    	{
+		    		if (cbk_options)
 		    		{
-		    			currency::price p = {currency::USD, 1.2};
-		    			auto id = match_to_id<const currency::unit>(v[csv::trades::col::CURRENCY],
-		    					currency::match, sizeof(currency::match)/sizeof(currency::match[0])
-								);
-		    			p.unit = currency::from_symbol(id);
-		    			p.value = stof(v[csv::trades::col::PRICE]);
-		    			security aktie(v[csv::trades::col::SYMBOL].c_str(),  p);
-		    			p.value = stof(v[csv::trades::col::COSTN]);
-		    			int amount = stoi(v[csv::trades::col::AMOUNT]);
-		    			tranche tranche1(aktie, amount, p, {currency::USD, stof(v[csv::trades::col::FEE])}, false);
-		    			if (amount < 0) tranche1.setType(tranche::SELL);
-	    				tranche1.makeAbsolute();
-		    			cbk_stock(tranche1);
-			    		cout << "STONK" << tranche1 << endl;
+		    			cout << "OPTI" << endl;
 		    		}
-		    		break;
-		    	case trade::type::FOREX: cout << "CASH " << endl; break;
-		    	case trade::type::OPTIONS: cout << "OPTI" << endl; break;
-		    	default: cout << "NAN!" << endl; break;
+		    	} break;
+
+		    	default:
+				{
+					cout << "NAN!" << endl;
+				} break;
 		    }
 		}
-	}
-}
+		else if (isForex)
+		{
+	    	std::stringstream ss2(v[csv::forex::col::DATE]);
+	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+	    	currency::price price = {
+				currency_from_vector(v, csv::forex::col::CURRENCY),
+				stof(v[csv::forex::col::AMOUNT]) / stof(v[csv::forex::col::PRICEG])
+			};
+
+			security cash(v[csv::forex::col::CLASS].c_str(), price);
+
+			currency::price fee = {currency::USD, stof(v[csv::forex::col::FEE])};
+
+			auto tr = std::make_unique<tranche>(cash, 9999, price, fee, false);
+
+			//if (amount < 0) tranche.setType(tranche::BUY);
+			tr->makeAbsolute();
+			if (cbk_forex)
+			{
+				cbk_forex(tm, tr);
+			}
+			cout << "forex " << *tr << endl;
+			temp_cnt++;
+		}
+		else
+		{
+			/* cannot parse */
+		}
+	} /* while getline */
+
+	printf("Summary: %d", temp_cnt);
+} /* parse */
 
 
 } /* namespace ibkr */

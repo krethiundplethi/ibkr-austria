@@ -46,12 +46,16 @@ unit from_symbol(const symbol s);
 std::ostream &operator<<(std::ostream &, const currency::price &);
 std::ostream &operator<<(std::ostream &, const currency::unit &);
 
+#define MAKE_CURRENCY_STRUCT(x) constexpr struct unit x = { symbol::x, #x}
 
-constexpr struct unit EUR = { symbol::EUR, "EUR" };
-constexpr struct unit USD = { symbol::USD, "USD" };
-constexpr struct unit UNKNOWN = { symbol::UNKNOWN, "UNKNOWN" };
+MAKE_CURRENCY_STRUCT(EUR);
+MAKE_CURRENCY_STRUCT(USD);
+MAKE_CURRENCY_STRUCT(CAD);
+MAKE_CURRENCY_STRUCT(AUD);
+MAKE_CURRENCY_STRUCT(RUB);
+MAKE_CURRENCY_STRUCT(UNKNOWN);
 
-constexpr struct unit match[] = { EUR, USD };
+constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, UNKNOWN };
 
 }
 } /* namespace ibkr */

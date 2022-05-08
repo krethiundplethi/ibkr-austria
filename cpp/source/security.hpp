@@ -24,11 +24,14 @@ public:
 	security(const char *name, const currency::price price)
 		: name {name}, price {price} {}
 
+	security(const security &rval)
+		: name {rval.name}, price {rval.price} { };
+
 	inline const currency::price &getPrice() const { return price; }
 	inline const char * getName() const { return name; }
 
 
-	~security() {};
+	~security() { };
 private:
 	const char *name;
 	const currency::price price;

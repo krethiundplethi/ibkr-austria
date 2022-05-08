@@ -14,6 +14,8 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include <memory>
+#include <ctime>
 
 
 namespace ibkr {
@@ -41,17 +43,19 @@ constexpr unit match[] =
 
 }
 
-typedef void (*callback_function)(tranche tr);
+typedef void (*callback_function)(const std::tm &tm, const std::unique_ptr<tranche> &tr);
 
 class ibkr_parser {
 
 public:
 	ibkr_parser() = delete;
-	ibkr_parser(std::string fname) : fname{fname}, istream(fname) { cbk_stock = nullptr; };
+	ibkr_parser(std::string fname) : fname{fname}, istream(fname) { cbk_stock = cbk_forex = cbk_options = nullptr; };
 
 	void parse(void);
 
 	void register_callback_on_stock(callback_function cbk) { cbk_stock = cbk; };
+	void register_callback_on_forex(callback_function cbk) { cbk_forex = cbk; };
+	void register_callback_on_options(callback_function cbk) { cbk_options = cbk; };
 
 	virtual ~ibkr_parser() {};
 
@@ -59,6 +63,8 @@ private:
 	std::string fname;
 	std::ifstream istream;
 	callback_function cbk_stock;
+	callback_function cbk_forex;
+	callback_function cbk_options;
 };
 
 } /* namespace ibkr */

@@ -29,6 +29,7 @@ public:
 
 	tranche() = delete;
 	tranche(const security &security, int amount, const currency::price price, const currency::price fee, bool sell);
+	tranche(const tranche &rval);
 
 	inline void setType(enum e_ordertype ot) {ordertype = ot; }
 	inline const security &getSecurity() const { return sec; }

@@ -43,7 +43,7 @@ public:
 	~tranche() { };
 
 private:
-	const security &sec;
+	const security sec;
 	int amount;
 	currency::price price;
 	currency::price fee;

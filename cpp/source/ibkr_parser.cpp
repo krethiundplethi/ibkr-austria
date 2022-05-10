@@ -155,10 +155,10 @@ void ibkr_parser::parse(void)
 
 	    if (isTrade || isForex)
 	    {
-		    cout << line << endl;
+		    //cout << line << endl;
 	    	vectorize(line, v);
-	    	copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
-	    	cout << endl;
+	    	//copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
+	    	//cout << endl;
 	    }
 
 	    if (isTrade)
@@ -173,7 +173,7 @@ void ibkr_parser::parse(void)
 					currency::price price = {currency::USD, 0.0};
 					price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
 					price.value = stof(v[csv::trades::col::PRICE]);
-					const security aktie(v[csv::trades::col::SYMBOL].c_str(),  price);
+					const security aktie(v[csv::trades::col::SYMBOL],  price);
 
 					int amount = stoi(v[csv::trades::col::AMOUNT]);
 					currency::price fee = {currency::USD, stof(v[csv::trades::col::FEE])};
@@ -186,7 +186,7 @@ void ibkr_parser::parse(void)
 					{
 						cbk_stock(tm, p_tranche);
 					}
-		    	}break;
+		    	} break;
 
 		    	case trade::type::FOREX:
 		    	{
@@ -212,8 +212,8 @@ void ibkr_parser::parse(void)
 					{
 						cbk_forex(tm, tr);
 					}
-					cout << "CASH " << *tr << endl;
-		    	}break;
+					//cout << "CASH " << *tr << endl;
+		    	} break;
 
 		    	case trade::type::OPTIONS:
 		    	{
@@ -236,23 +236,39 @@ void ibkr_parser::parse(void)
 
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
-				stof(v[csv::forex::col::AMOUNT]) / stof(v[csv::forex::col::PRICEG])
+				stof(v[csv::forex::col::PRICEG] / stof(v[csv::forex::col::AMOUNT]))
 			};
-
-			security cash(v[csv::forex::col::CLASS].c_str(), price);
 
 			currency::price fee = {currency::USD, stof(v[csv::forex::col::FEE])};
 
-			auto tr = std::make_unique<tranche>(cash, 9999, price, fee, false);
-
-			//if (amount < 0) tranche.setType(tranche::BUY);
-			tr->makeAbsolute();
-			if (cbk_forex)
+			security cash(v[csv::forex::col::CLASS].c_str(), price);
+			if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
+				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */
 			{
-				cbk_forex(tm, tr);
+				auto ss = stringstream(v[csv::forex::col::CLASS]);
+				string token;
+				vector <std::string> tokenized;
+
+				while (getline(ss, token, ' '))
+				{
+					tokenized.push_back(token);
+					cout << token;
+				}
+
+				price.value = stof(v[csv::forex::col::PRICEG]);
+				int amount = (tokenized.size() > 1) ? stoi(tokenized[1]) : 0;
+
+				auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
+
+				//if (amount < 0) tranche.setType(tranche::BUY);
+				tr->makeAbsolute();
+				if (cbk_forex)
+				{
+					cbk_forex(tm, tr);
+				}
+				//cout << "forex " << *tr << endl;
+				temp_cnt++;
 			}
-			cout << "forex " << *tr << endl;
-			temp_cnt++;
 		}
 		else
 		{
@@ -260,7 +276,7 @@ void ibkr_parser::parse(void)
 		}
 	} /* while getline */
 
-	printf("Summary: %d", temp_cnt);
+	printf("ibkr_parser summary: %d\n", temp_cnt);
 } /* parse */
 
 

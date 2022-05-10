@@ -13,20 +13,52 @@ using namespace std;
 using namespace ibkr;
 
 
-std::map <std::string, tranche> map_stock_trades;
+std::map <std::string, std::unique_ptr<tranche>> map_stock_trades;
+std::map <std::string, std::unique_ptr<tranche>> map_forex_trades;
 
 
-void cbk_stock(const std::tm &tm, const std::unique_ptr<tranche> &p_tranche)
+void cbk_stock(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
 	char buf[32];
-	cout << "STONK " << *p_tranche << endl;
+	// cout << "STONK " << *p_tranche << endl;
 	//auto buf = std::make_unique<char[]>(32); /*only 17, better safe than sorry YYYYMMDDHHMMSSxxx*/
-	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%03s",
+
+	/* man, c++ can be shitty. doing this in a safe way is 15 lines of code. so'll do it unsafe. */
+	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%-04s",
 			1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec,
-			p_tranche->getSecurity().getName());
+			p_tranche->getSecurity().getName().c_str());
 
-	printf(buf);
+	map_stock_trades[std::string(buf)] = std::move(p_tranche);
+
+}
+
+
+void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+{
+	char buf[32];
+	// cout << "STONK " << *p_tranche << endl;
+	//auto buf = std::make_unique<char[]>(32); /*only 17, better safe than sorry YYYYMMDDHHMMSSxxx*/
+
+	/* man, c++ can be shitty. doing this in a safe way is 15 lines of code. so'll do it unsafe. */
+
+	auto ss = stringstream(p_tranche->getSecurity().getName());
+	string token;
+	vector <std::string> tokenized;
+
+	tokenized.emplace_back("");
+	while (getline(ss, token, ' '))
+	{
+		tokenized.push_back(token);
+	}
+
+	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%-04s",
+			1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+			tm.tm_hour, tm.tm_min, tm.tm_sec,
+			tokenized.back().c_str());
+
+	map_forex_trades[std::string(buf)] = std::move(p_tranche);
+
 }
 
 
@@ -62,8 +94,18 @@ int main(int argc, char **argv)
 
 	ibkr_parser parser(filename);
 	parser.register_callback_on_stock(cbk_stock);
+	parser.register_callback_on_forex(cbk_forex);
 	parser.parse();
 
+	for (auto const &elem: map_stock_trades)
+	{
+		cout << elem.first << ": " << *elem.second << endl;
+	}
+
+	for (auto const &elem: map_forex_trades)
+	{
+		cout << elem.first << ": " << *elem.second << endl;
+	}
 	cout.flush();
 
 	return 0;

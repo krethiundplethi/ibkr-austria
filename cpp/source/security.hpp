@@ -9,6 +9,8 @@
 #define SOURCE_SECURITY_H_
 
 #include "currency.hpp"
+#include <string>
+
 
 namespace ibkr
 {
@@ -21,19 +23,19 @@ public:
 	};
 
 	security() = delete;
-	security(const char *name, const currency::price price)
+	security(const std::string &name, const currency::price price)
 		: name {name}, price {price} {}
 
 	security(const security &rval)
 		: name {rval.name}, price {rval.price} { };
 
 	inline const currency::price &getPrice() const { return price; }
-	inline const char * getName() const { return name; }
+	inline const std::string &getName() const { return name; }
 
 
 	~security() { };
 private:
-	const char *name;
+	std::string name;
 	const currency::price price;
 };
 

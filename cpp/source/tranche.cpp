@@ -8,6 +8,7 @@
 #include "tranche.hpp"
 #include "security.hpp"
 #include "currency.hpp"
+#include <iomanip>
 
 namespace ibkr
 {
@@ -35,10 +36,10 @@ void tranche::makeAbsolute(void)
 std::ostream &operator<<(std::ostream &os, const tranche &t)
 {
 	os << "Tranche ";
-	if (t.isSell()) os << "(S)";
+	if (t.isSell()) os << "(S) ";
 	else os << "(B) ";
 
-	os << t.getSecurity() << " stk: " << t.getAmount() << " Price: " << t.getPrice() << " Fee: " << t.getFee();
+	os << std::setw(4) << t.getSecurity() << " stk: " << t.getAmount() << " Price: " << t.getPrice() << " Fee: " << t.getFee();
 	return os;
 }
 

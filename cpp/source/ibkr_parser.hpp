@@ -43,7 +43,7 @@ constexpr unit match[] =
 
 }
 
-typedef void (*callback_function)(const std::tm &tm, const std::unique_ptr<tranche> &tr);
+typedef void (*callback_function)(const std::tm &tm, std::unique_ptr<tranche> &tr);
 
 class ibkr_parser {
 

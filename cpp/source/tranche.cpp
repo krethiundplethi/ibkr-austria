@@ -16,11 +16,15 @@ namespace ibkr
 tranche::tranche(const security &sec, int amount, const  currency::price price, currency::price fee, bool sell)
 		: sec {sec}, amount {amount}, price {price}, fee {fee}
 {
+	timestamp.tm_year = 0;
+	timestamp.tm_mon = 0;
+	timestamp.tm_mday = 0;
+
 	ordertype = sell ? SELL : BUY;
 }
 
 tranche::tranche(const tranche &rval)
-: sec {rval.sec}, amount {rval.amount}, price {rval.price}, fee {rval.fee}
+: sec {rval.sec}, amount {rval.amount}, price {rval.price}, fee {rval.fee}, timestamp {rval.timestamp}
 {
 	ordertype = rval.ordertype;
 }

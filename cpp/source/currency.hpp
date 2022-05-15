@@ -9,6 +9,7 @@
 #define SOURCE_CURRENCY_H_
 
 #include <iostream>
+#include "string.h"
 
 namespace ibkr
 {
@@ -30,13 +31,19 @@ struct unit
 {
 	symbol id;
 	const char *name;
+
+	bool operator<(const unit &r) const { return id < r.id; }
 };
 
 
 struct price
 {
 	struct unit unit;
-	float value;
+	double value;
+
+	operator double() const { return value; }
+	price operator+(price const &rop) const { return { unit, value + rop.value }; }
+	price operator-(price const &rop) const { return { unit, value - rop.value }; }
 };
 
 

@@ -11,6 +11,7 @@
 #define SOURCE_TRANCHE_H_
 
 #include <iostream>
+#include <ctime>
 #include "security.hpp"
 #include "currency.hpp"
 
@@ -36,6 +37,8 @@ public:
 	inline const currency::price &getFee() const { return fee; }
 	inline const currency::price &getPrice() const { return price; }
 	inline const int &getAmount() const { return amount; }
+	inline const std::tm &getTimeStamp() const { return timestamp; }
+	inline void setTimeStamp(std::tm const &tm) { timestamp = tm; }
 
 	void makeAbsolute(void);
 	inline bool isSell(void) const { return ordertype == SELL; }
@@ -45,6 +48,7 @@ public:
 private:
 	const security sec;
 	int amount;
+	std::tm timestamp;
 	currency::price price;
 	currency::price fee;
 	enum e_ordertype ordertype;

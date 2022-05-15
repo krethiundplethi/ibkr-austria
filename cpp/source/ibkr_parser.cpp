@@ -52,9 +52,8 @@ enum col
 	DATE = 5,
 	CURRENCY = 6,
 	AMOUNT = 7,
-	PRICEG = 8,
-	PRICEN = 9,
-	FEE = 10,
+	EARNING = 8,
+	BASIS = 9,
 };
 
 } /* ns forex */
@@ -193,24 +192,26 @@ void ibkr_parser::parse(void)
 					auto currency = currency_from_vector(v, csv::trades::col::CURRENCY);
 					currency::price price = {
 							currency,
-							stof(v[csv::forex::col::AMOUNT]) / stof(v[csv::forex::col::PRICEG])
+							stof(v[csv::trades::col::AMOUNT]) / stof(v[csv::trades::col::PRICE])
 					};
-					security cash(v[csv::forex::col::CLASS].c_str(), price);
+					security cash(v[csv::trades::col::CLASS].c_str(), price);
 
 
-					currency::price fee = {currency, stof(v[csv::forex::col::FEE])};
-					price.value = stof(v[csv::forex::col::PRICEN]);
-					int amount = stoi(v[csv::forex::col::AMOUNT]);
+					currency::price fee = {currency, stof(v[csv::trades::col::FEE])};
+					price.value = stof(v[csv::trades::col::PRICE]);
+					int amount = stoi(v[csv::trades::col::AMOUNT]);
 
 					vector <string> iv;
-					vectorize_inner(v[csv::forex::col::CLASS], iv);
+					vectorize_inner(v[csv::trades::col::CLASS], iv);
 
 					auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
+					tr->setTimeStamp(tm);
 					if (amount < 0) tr->setType(tranche::SELL);
 					tr->makeAbsolute();
 					if (cbk_forex)
 					{
-						cbk_forex(tm, tr);
+						//cbk_forex(tm, tr);
+						// TODO:FIXME
 					}
 					//cout << "CASH " << *tr << endl;
 		    	} break;
@@ -234,14 +235,17 @@ void ibkr_parser::parse(void)
 	    	std::stringstream ss2(v[csv::forex::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
+	    	double price_per_share = stof(v[csv::forex::col::EARNING]) / stof(v[csv::forex::col::AMOUNT]);
+
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
-				stof(v[csv::forex::col::PRICEG] / stof(v[csv::forex::col::AMOUNT]))
+				price_per_share
 			};
 
-			currency::price fee = {currency::USD, stof(v[csv::forex::col::FEE])};
+			currency::price fee = {currency::USD, 0.0};
 
 			security cash(v[csv::forex::col::CLASS].c_str(), price);
+
 			if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
 				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */
 			{
@@ -255,12 +259,26 @@ void ibkr_parser::parse(void)
 					cout << token;
 				}
 
-				price.value = stof(v[csv::forex::col::PRICEG]);
-				int amount = (tokenized.size() > 1) ? stoi(tokenized[1]) : 0;
+				price.value = stof(v[csv::forex::col::EARNING]);
+				int amount = -stof(v[csv::forex::col::AMOUNT]);
+				if (tokenized.size() > 2)
+				{
+					cash.setName(tokenized[2]);
+					if (tokenized[2].find(".") != string::npos)
+					{
+						cash.setType(security::CURRENCY);
+						fee.value = -stoi(tokenized[1]) - price.value;
+					}
+					else
+					{
+						amount = stoi(tokenized[1]); /* amount already set for FX */
+					}
+				}
 
 				auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
-
-				//if (amount < 0) tranche.setType(tranche::BUY);
+				tr->setTimeStamp(tm);
+				if (amount < 0) tr->setType(tranche::BUY);
+				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
 				if (cbk_forex)
 				{

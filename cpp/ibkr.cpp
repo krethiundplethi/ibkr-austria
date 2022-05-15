@@ -8,13 +8,16 @@
 #include "CLI11.hpp"
 
 #include <iostream>
+#include <set>
 
 using namespace std;
 using namespace ibkr;
 
-
-std::map <std::string, std::unique_ptr<tranche>> map_stock_trades;
-std::map <std::string, std::unique_ptr<tranche>> map_forex_trades;
+int g_year = 2022;
+std::map <std::string, std::unique_ptr<tranche>> g_map_stock_trades;
+std::map <std::string, std::unique_ptr<tranche>> g_map_forex_trades;
+std::set <ibkr::currency::unit> g_foreign_currencies;
+std::map <ibkr::currency::unit, double> g_balances;
 
 
 void cbk_stock(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
@@ -29,7 +32,7 @@ void cbk_stock(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 			tm.tm_hour, tm.tm_min, tm.tm_sec,
 			p_tranche->getSecurity().getName().c_str());
 
-	map_stock_trades[std::string(buf)] = std::move(p_tranche);
+	g_map_stock_trades[std::string(buf)] = std::move(p_tranche);
 
 }
 
@@ -57,8 +60,14 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 			tm.tm_hour, tm.tm_min, tm.tm_sec,
 			tokenized.back().c_str());
 
-	map_forex_trades[std::string(buf)] = std::move(p_tranche);
+	const currency::unit &cu = p_tranche->getPrice().unit;
+	if (g_foreign_currencies.find(cu) == g_foreign_currencies.end())
+	{
+		g_foreign_currencies.insert(cu);
+		g_balances[cu] = 0.0;
+	}
 
+	g_map_forex_trades[std::string(buf)] = std::move(p_tranche);
 }
 
 
@@ -97,16 +106,80 @@ int main(int argc, char **argv)
 	parser.register_callback_on_forex(cbk_forex);
 	parser.parse();
 
-	for (auto const &elem: map_stock_trades)
+	/** complete output for debug **/
+
+	for (auto const &elem: g_map_stock_trades)
 	{
 		cout << elem.first << ": " << *elem.second << endl;
 	}
 
-	for (auto const &elem: map_forex_trades)
+	for (auto const &elem: g_map_forex_trades)
 	{
-		cout << elem.first << ": " << *elem.second << endl;
+		cout << elem.first << "> " << *elem.second << endl;
+	}
+
+	for (auto const &elem: g_foreign_currencies)
+	{
+		cout << elem << endl;
 	}
 	cout.flush();
+
+
+	for (auto const currency : g_foreign_currencies)
+	{
+		for (int month = 0; month < 12; ++month)
+		{
+			printf("%4d-%02d ; Day ; Symbol  ; K/V/WP ; %-9s ;  Bestand  ; ; Soll EUR  ; Haben EUR ; ; Kurs ; ; Ansatz EUR ; GuV ; Gebühren\n", g_year, month + 1, currency.name);
+
+			for (auto const &elem: g_map_forex_trades)
+			{
+				tranche t = static_cast<tranche &>(*elem.second);
+				std::string key = elem.first;
+				std::tm tm = t.getTimeStamp();
+				if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
+				{
+					printf("%4d-%02d ; %02d  ; ",  g_year, month+1, tm.tm_mday);
+					printf("%-7s ; ", t.getSecurity().getName().c_str());
+
+					auto found = g_map_stock_trades.end();
+
+					if (t.getSecurity().isEquity())
+					{
+						printf("%-6s ; ", "WP");
+						found = g_map_stock_trades.find(key);
+					}
+					else
+					{
+						printf("%-6s ; ", t.isSell() ? "V" : "K");
+					}
+
+					double booking = t.getPrice() - t.getFee();
+					double stock_paid = 0.0;
+					double stock_fee = 0.0;
+
+					if (found != g_map_stock_trades.end())
+					{
+						stock_paid = found->second->getPrice().value;
+						stock_fee = found->second->getFee().value;
+					}
+					else
+					{
+						stock_paid = t.getAmount();
+					}
+
+					printf("%-9.02f ; ", stock_paid * (t.isSell() ? -1.00 : 1.00));
+					g_balances[currency] += stock_paid * (t.isSell() ? -1.00 : 1.00);
+					printf("%9.02f ; ", g_balances[currency]);
+					printf(t.isSell() ? "; %9.02f ;           ; " :\
+							            ";           ; %9.02f ; ", booking);
+
+
+					printf("\n");
+				}
+			}
+		}
+		break;
+	}
 
 	return 0;
 }

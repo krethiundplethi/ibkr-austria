@@ -19,24 +19,29 @@ struct security
 {
 public:
 	enum type {
-
+		EQUITY,
+		CURRENCY
 	};
 
 	security() = delete;
 	security(const std::string &name, const currency::price price)
-		: name {name}, price {price} {}
+		: name {name}, price {price} { type = EQUITY; }
 
 	security(const security &rval)
-		: name {rval.name}, price {rval.price} { };
+		: name {rval.name}, price {rval.price}, type {rval.type} { };
 
 	inline const currency::price &getPrice() const { return price; }
 	inline const std::string &getName() const { return name; }
-
+	inline void setName(std::string const &s) { name = s; }
+	inline void setType(type const &t) { type = t; }
+	inline const type &getType(void) const { return type; }
+	inline bool isEquity(void) const { return type == EQUITY; }
 
 	~security() { };
 private:
 	std::string name;
 	const currency::price price;
+	type type;
 };
 
 std::ostream &operator<<(std::ostream &, const security &);

@@ -29,14 +29,15 @@ public:
 	};
 
 	tranche() = delete;
-	tranche(const security &security, int amount, const currency::price price, const currency::price fee, bool sell);
+	tranche(const security &security, double quanti, const currency::price price, const currency::price fee, bool sell);
 	tranche(const tranche &rval);
 
 	inline void setType(enum e_ordertype ot) {ordertype = ot; }
 	inline const security &getSecurity() const { return sec; }
 	inline const currency::price &getFee() const { return fee; }
 	inline const currency::price &getPrice() const { return price; }
-	inline const int &getAmount() const { return amount; }
+	inline const enum e_ordertype &getType() const { return ordertype; }
+	inline const double &getQuanti() const { return quanti; }
 	inline const std::tm &getTimeStamp() const { return timestamp; }
 	inline void setTimeStamp(std::tm const &tm) { timestamp = tm; }
 
@@ -47,7 +48,7 @@ public:
 
 private:
 	const security sec;
-	int amount;
+	double quanti;
 	std::tm timestamp;
 	currency::price price;
 	currency::price fee;

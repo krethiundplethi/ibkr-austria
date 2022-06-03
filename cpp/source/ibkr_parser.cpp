@@ -13,6 +13,7 @@
 #include <vector>
 #include <ctime>
 #include <iomanip>
+#include <cmath>
 
 
 namespace ibkr {
@@ -51,7 +52,7 @@ enum col
 	CLASS = 4,
 	DATE = 5,
 	CURRENCY = 6,
-	AMOUNT = 7,
+	QUANTI = 7,
 	EARNING = 8,
 	BASIS = 9,
 };
@@ -154,10 +155,10 @@ void ibkr_parser::parse(void)
 
 	    if (isTrade || isForex)
 	    {
-		    //cout << line << endl;
+		    cout << line << endl;
 	    	vectorize(line, v);
-	    	//copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
-	    	//cout << endl;
+	    	copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
+	    	cout << endl;
 	    }
 
 	    if (isTrade)
@@ -235,14 +236,17 @@ void ibkr_parser::parse(void)
 	    	std::stringstream ss2(v[csv::forex::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
-	    	double price_per_share = stof(v[csv::forex::col::EARNING]) / stof(v[csv::forex::col::AMOUNT]);
+	    	double price_per_share = stof(v[csv::forex::col::EARNING]) / stof(v[csv::forex::col::QUANTI]);
 
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
 				price_per_share
 			};
 
-			currency::price fee = {currency::USD, 0.0};
+			currency::price fee = {
+				currency_from_vector(v, csv::forex::col::CURRENCY),
+				0.0
+			};
 
 			security cash(v[csv::forex::col::CLASS].c_str(), price);
 
@@ -260,24 +264,28 @@ void ibkr_parser::parse(void)
 				}
 
 				price.value = stof(v[csv::forex::col::EARNING]);
-				int amount = -stof(v[csv::forex::col::AMOUNT]);
+				double quanti = -stof(v[csv::forex::col::QUANTI]);
 				if (tokenized.size() > 2)
 				{
 					cash.setName(tokenized[2]);
 					if (tokenized[2].find(".") != string::npos)
 					{
 						cash.setType(security::CURRENCY);
-						fee.value = -stoi(tokenized[1]) - price.value;
+						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
+						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
+						 */
+						double eur = abs(stof(tokenized[1]));
+						fee.value = abs(price.value - eur);
 					}
 					else
 					{
-						amount = stoi(tokenized[1]); /* amount already set for FX */
+						quanti = stof(tokenized[1]); /* amount already set for FX */
 					}
 				}
 
-				auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
+				auto tr = std::make_unique<tranche>(cash, quanti, price, fee, false);
 				tr->setTimeStamp(tm);
-				if (amount < 0) tr->setType(tranche::BUY);
+				if (quanti < 0) tr->setType(tranche::BUY);
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
 				if (cbk_forex)

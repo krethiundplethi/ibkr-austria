@@ -13,8 +13,8 @@
 namespace ibkr
 {
 
-tranche::tranche(const security &sec, int amount, const  currency::price price, currency::price fee, bool sell)
-		: sec {sec}, amount {amount}, price {price}, fee {fee}
+tranche::tranche(const security &sec, double quanti, const  currency::price price, currency::price fee, bool sell)
+		: sec {sec}, quanti {quanti}, price {price}, fee {fee}
 {
 	timestamp.tm_year = 0;
 	timestamp.tm_mon = 0;
@@ -24,7 +24,7 @@ tranche::tranche(const security &sec, int amount, const  currency::price price, 
 }
 
 tranche::tranche(const tranche &rval)
-: sec {rval.sec}, amount {rval.amount}, price {rval.price}, fee {rval.fee}, timestamp {rval.timestamp}
+: sec {rval.sec}, quanti {rval.quanti}, price {rval.price}, fee {rval.fee}, timestamp {rval.timestamp}
 {
 	ordertype = rval.ordertype;
 }
@@ -34,7 +34,7 @@ void tranche::makeAbsolute(void)
 {
 	if (price.value < 0) price.value *= -1.0;
 	if (fee.value < 0) fee.value *= -1.0;
-	if (amount < 0) amount *= -1;
+	if (quanti < 0) quanti *= -1.0;
 }
 
 std::ostream &operator<<(std::ostream &os, const tranche &t)
@@ -43,7 +43,7 @@ std::ostream &operator<<(std::ostream &os, const tranche &t)
 	if (t.isSell()) os << "(S) ";
 	else os << "(B) ";
 
-	os << std::setw(4) << t.getSecurity() << " stk: " << t.getAmount() << " Price: " << t.getPrice() << " Fee: " << t.getFee();
+	os << std::setw(4) << t.getSecurity() << " stk: " << t.getQuanti() << " Price: " << t.getPrice() << " Fee: " << t.getFee();
 	return os;
 }
 

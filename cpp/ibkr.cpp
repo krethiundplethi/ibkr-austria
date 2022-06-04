@@ -69,7 +69,14 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		g_balances_in_eur[cu] = 0.0;
 	}
 
-	g_map_forex_trades[std::string(buf)] = std::move(p_tranche);
+	int cnt = 0;
+	auto key = std::string(buf) + "-" + std::to_string(cnt);
+	while (g_map_forex_trades.find(key) != g_map_forex_trades.end())
+	{
+		key = std::string(buf) + "-" + std::to_string(++cnt);
+	}
+
+	g_map_forex_trades[key] = std::move(p_tranche);
 }
 
 
@@ -148,9 +155,16 @@ int main(int argc, char **argv)
 			{
 				tranche t = static_cast<tranche &>(*elem.second);
 				std::string key = elem.first;
+				key = key.substr(0, 18);
 				std::tm tm = t.getTimeStamp();
+
 				if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 				{
+					if (t.getSecurity().getName() == "AMC")
+					{
+						printf("");
+					}
+
 					printf("%4d-%02d ; %02d  ; ",  g_year, month+1, tm.tm_mday);
 					printf("%-7s ; ", t.getSecurity().getName().c_str());
 
@@ -174,11 +188,23 @@ int main(int argc, char **argv)
 
 					if (found != g_map_stock_trades.end()) /* look up in the transaktions table */
 					{
-						stock_paid = t.getQuanti() * found->second->getSecurity().getPrice().value;
+						/* stock_paid = t.getQuanti() * found->second->getSecurity().getPrice().value;
+						 * bug: this does not compute.
+						 * When shorting, IBKR has fee for each partial fill of an order.
+						 * Workaround: Use the original USD amounts, and add the complete
+						 * fee to the first transaction. It is not 100% correct,
+						 * as the first part already changes the running average...
+						 * but better than no tax statement at all...
+						 * Is a FIXME for now.
+						 */
+
+						const tranche &order = *(found->second);
 
 						/* acshually we are only doing this to get the fee on the transaktion,
 						 * thats it. All other information is already in the forex table entry. */
-						stock_fee = found->second->getFee().value;
+						stock_fee = order.getFee().value;
+						stock_paid = t.getPrice() * (t.isSell() ? -1.00 : 1.00) / t.getSecurity().getPrice();
+						stock_paid = t.isSell() ? stock_paid - stock_fee : stock_paid + stock_fee;
 
 						/* booking in eur is a bit tricky here because fees need to be extracted. */
 						eur_fee = stock_fee * eur_paid / (stock_paid + stock_fee);
@@ -186,6 +212,10 @@ int main(int argc, char **argv)
 						{
 							/* buying equity ... fee is already considered */
 							eur_paid -= eur_fee;
+						}
+						else
+						{
+							eur_paid += eur_fee;
 						}
 					}
 					else if(t.getSecurity().getType() == security::EQUITY)

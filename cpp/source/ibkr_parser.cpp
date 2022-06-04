@@ -155,10 +155,12 @@ void ibkr_parser::parse(void)
 
 	    if (isTrade || isForex)
 	    {
-		    cout << line << endl;
 	    	vectorize(line, v);
+			/* fixme debug logging
+		    cout << line << endl;
 	    	copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
 	    	cout << endl;
+			 */
 	    }
 
 	    if (isTrade)
@@ -172,12 +174,12 @@ void ibkr_parser::parse(void)
 		    	{
 					currency::price price = {currency::USD, 0.0};
 					price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
-					price.value = stof(v[csv::trades::col::PRICE]);
+					price.value = stod(v[csv::trades::col::PRICE]);
 					const security aktie(v[csv::trades::col::SYMBOL],  price);
 
 					int amount = stoi(v[csv::trades::col::AMOUNT]);
-					currency::price fee = {currency::USD, stof(v[csv::trades::col::FEE])};
-					price.value = stof(v[csv::trades::col::COSTN]);
+					currency::price fee = {currency::USD, stod(v[csv::trades::col::FEE])};
+					price.value = stod(v[csv::trades::col::COSTN]);
 
 					auto p_tranche = std::make_unique<tranche>(aktie, amount, price, fee, false);
 					if (amount < 0) p_tranche->setType(tranche::SELL);
@@ -193,13 +195,13 @@ void ibkr_parser::parse(void)
 					auto currency = currency_from_vector(v, csv::trades::col::CURRENCY);
 					currency::price price = {
 							currency,
-							stof(v[csv::trades::col::AMOUNT]) / stof(v[csv::trades::col::PRICE])
+							stod(v[csv::trades::col::AMOUNT]) / stod(v[csv::trades::col::PRICE])
 					};
 					security cash(v[csv::trades::col::CLASS].c_str(), price);
 
 
-					currency::price fee = {currency, stof(v[csv::trades::col::FEE])};
-					price.value = stof(v[csv::trades::col::PRICE]);
+					currency::price fee = {currency, stod(v[csv::trades::col::FEE])};
+					price.value = stod(v[csv::trades::col::PRICE]);
 					int amount = stoi(v[csv::trades::col::AMOUNT]);
 
 					vector <string> iv;
@@ -236,7 +238,7 @@ void ibkr_parser::parse(void)
 	    	std::stringstream ss2(v[csv::forex::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
-	    	double price_per_share = stof(v[csv::forex::col::EARNING]) / stof(v[csv::forex::col::QUANTI]);
+	    	double price_per_share = stod(v[csv::forex::col::EARNING]) / stod(v[csv::forex::col::QUANTI]);
 
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
@@ -260,11 +262,11 @@ void ibkr_parser::parse(void)
 				while (getline(ss, token, ' '))
 				{
 					tokenized.push_back(token);
-					cout << token;
+					//cout << token;
 				}
 
-				price.value = stof(v[csv::forex::col::EARNING]);
-				double quanti = -stof(v[csv::forex::col::QUANTI]);
+				price.value = stod(v[csv::forex::col::EARNING]);
+				double quanti = -stod(v[csv::forex::col::QUANTI]);
 				if (tokenized.size() > 2)
 				{
 					cash.setName(tokenized[2]);
@@ -274,12 +276,12 @@ void ibkr_parser::parse(void)
 						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
 						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
 						 */
-						double eur = abs(stof(tokenized[1]));
+						double eur = abs(stod(tokenized[1]));
 						fee.value = abs(price.value - eur);
 					}
 					else
 					{
-						quanti = stof(tokenized[1]); /* amount already set for FX */
+						quanti = stod(tokenized[1]); /* amount already set for FX */
 					}
 				}
 

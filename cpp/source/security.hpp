@@ -19,8 +19,10 @@ struct security
 {
 public:
 	enum type {
+		NONE,
 		EQUITY,
-		CURRENCY
+		CURRENCY,
+		OPTION,
 	};
 
 	security() = delete;

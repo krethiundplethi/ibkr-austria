@@ -15,10 +15,12 @@ using namespace ibkr;
 
 int g_year = 2021;
 std::map <std::string, std::unique_ptr<tranche>> g_map_stock_trades;
+std::map <std::string, std::unique_ptr<tranche>> g_map_unfilled;
 std::map <std::string, std::unique_ptr<tranche>> g_map_forex_trades;
 std::set <ibkr::currency::unit> g_foreign_currencies;
 std::map <ibkr::currency::unit, double> g_balances;
 std::map <ibkr::currency::unit, double> g_balances_in_eur;
+std::map <ibkr::currency::unit, double> g_avg_rate;
 
 
 void cbk_stock(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
@@ -67,6 +69,7 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		g_foreign_currencies.insert(cu);
 		g_balances[cu] = 0.0;
 		g_balances_in_eur[cu] = 0.0;
+		g_avg_rate[cu] = 0.0;
 	}
 
 	int cnt = 0;
@@ -156,11 +159,12 @@ int main(int argc, char **argv)
 				tranche t = static_cast<tranche &>(*elem.second);
 				std::string key = elem.first;
 				key = key.substr(0, 18);
+				string key_unfilled = key.substr(0, 6) + t.getSecurity().getName();
 				std::tm tm = t.getTimeStamp();
 
 				if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 				{
-					if (t.getSecurity().getName() == "AMC")
+					if (t.getSecurity().getName() == "PATH")
 					{
 						printf("");
 					}
@@ -168,17 +172,36 @@ int main(int argc, char **argv)
 					printf("%4d-%02d ; %02d  ; ",  g_year, month+1, tm.tm_mday);
 					printf("%-7s ; ", t.getSecurity().getName().c_str());
 
-					auto found = g_map_stock_trades.end();
+					auto it = g_map_stock_trades.end();
+					bool found = false;
 
-
-					if (t.getSecurity().isEquity())
+					if (t.getSecurity().getType() == security::EQUITY)
 					{
 						printf("%-6s ; ", t.isSell() ? "WPK" : "WPV"); /* buying equity == selling currency */
-						found = g_map_stock_trades.find(key);
+						it = g_map_stock_trades.find(key);
+					}
+					else if (t.getSecurity().getType() == security::OPTION)
+					{
+						printf("%-6s ; ", t.isSell() ? "OPK" : "OPV");
 					}
 					else
 					{
 						printf("%-6s ; ", t.isSell() ? "V" : "K");
+					}
+
+					if (it != g_map_stock_trades.end())
+					{
+						/* try to find an unfilled order... */
+						found = true;
+					}
+
+					if (!found)
+					{
+						it = g_map_unfilled.find(key_unfilled);
+						if (it != g_map_unfilled.end())
+						{
+							found = true;
+						}
 					}
 
 					double stock_paid = 0.0;
@@ -186,7 +209,7 @@ int main(int argc, char **argv)
 					double eur_paid = t.getPrice() - t.getFee();
 					double eur_fee = 0;
 
-					if (found != g_map_stock_trades.end()) /* look up in the transaktions table */
+					if (found) /* look up in the transaktions table */
 					{
 						/* stock_paid = t.getQuanti() * found->second->getSecurity().getPrice().value;
 						 * bug: this does not compute.
@@ -198,13 +221,20 @@ int main(int argc, char **argv)
 						 * Is a FIXME for now.
 						 */
 
-						const tranche &order = *(found->second);
+						tranche &order = *(it->second);
+
+						order.fill(t.getQuanti());
+						if (!order.isFilled())
+						{
+							g_map_unfilled[key_unfilled] = std::move(it->second);
+							g_map_stock_trades.erase(it->first);
+						}
 
 						/* acshually we are only doing this to get the fee on the transaktion,
 						 * thats it. All other information is already in the forex table entry. */
-						stock_fee = order.getFee().value;
-						stock_paid = t.getPrice() * (t.isSell() ? -1.00 : 1.00) / t.getSecurity().getPrice();
-						stock_paid = t.isSell() ? stock_paid - stock_fee : stock_paid + stock_fee;
+						stock_paid = t.getQuanti() * order.getSecurity().getPrice();
+						stock_fee = (t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
+						//stock_paid = t.isSell() ? stock_paid - stock_fee : stock_paid + stock_fee;
 
 						/* booking in eur is a bit tricky here because fees need to be extracted. */
 						eur_fee = stock_fee * eur_paid / (stock_paid + stock_fee);
@@ -230,15 +260,12 @@ int main(int argc, char **argv)
 						stock_paid = t.getQuanti();
 						if (t.isSell())
 						{
-							/* fixme:
-							 * selling currency ... IBKR already substraced the EUR fee, then we substracted again...
-							 * which we need to undo for taxing */
-							eur_paid += 2 * t.getFee();
+							eur_paid += t.getFee();
 						}
 					}
 
-					float old_balance = g_balances[currency];
-					float old_balance_eur = g_balances_in_eur[currency];
+					double old_balance = g_balances[currency];
+					double old_balance_eur = g_balances_in_eur[currency];
 
 					printf("%11.02f ; ", stock_paid * (t.isSell() ? -1.00 : 1.00));
 
@@ -248,6 +275,7 @@ int main(int argc, char **argv)
 					if (!t.isSell())
 					{
 						/* whenever I get currency, the current EUR value is used, not the averaged one */
+						g_avg_rate[currency] = (g_avg_rate[currency] * old_balance + eur_paid) / (old_balance + stock_paid);
 						g_balances_in_eur[currency] += eur_paid;
 					}
 					else
@@ -275,7 +303,7 @@ int main(int argc, char **argv)
 
 
 					printf("\n");
-					if (stock_fee > 0.0)
+					if (abs(stock_fee) > 0.00001)
 					{
 						/* Frage ist hier, welcher Kurs für Fremdwährungsspesen angesetzt wird. */
 						/* Entscheidung gegen den tagesaktuellen Kurs und für den gleitenden Durchschnitt. */
@@ -293,6 +321,7 @@ int main(int argc, char **argv)
 						printf("\n");
 					}
 				}
+				fflush(stdout);
 			}
 		}
 		break;

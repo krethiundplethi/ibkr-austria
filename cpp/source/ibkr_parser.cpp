@@ -175,7 +175,7 @@ void ibkr_parser::parse(void)
 					currency::price price = {currency::USD, 0.0};
 					price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
 					price.value = stod(v[csv::trades::col::PRICE]);
-					const security aktie(v[csv::trades::col::SYMBOL],  price);
+					const security aktie(v[csv::trades::col::SYMBOL], price);
 
 					int amount = stoi(v[csv::trades::col::AMOUNT]);
 					currency::price fee = {currency::USD, stod(v[csv::trades::col::FEE])};
@@ -238,7 +238,7 @@ void ibkr_parser::parse(void)
 	    	std::stringstream ss2(v[csv::forex::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
-	    	double price_per_share = stod(v[csv::forex::col::EARNING]) / stod(v[csv::forex::col::QUANTI]);
+	    	double price_per_share = abs(stod(v[csv::forex::col::EARNING]) / stod(v[csv::forex::col::QUANTI]));
 
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
@@ -251,6 +251,10 @@ void ibkr_parser::parse(void)
 			};
 
 			security cash(v[csv::forex::col::CLASS].c_str(), price);
+			cash.setType(security::CURRENCY);
+
+			price.value = stod(v[csv::forex::col::EARNING]);
+			double quanti = -stod(v[csv::forex::col::QUANTI]);
 
 			if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
 				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */
@@ -265,14 +269,11 @@ void ibkr_parser::parse(void)
 					//cout << token;
 				}
 
-				price.value = stod(v[csv::forex::col::EARNING]);
-				double quanti = -stod(v[csv::forex::col::QUANTI]);
 				if (tokenized.size() > 2)
 				{
 					cash.setName(tokenized[2]);
 					if (tokenized[2].find(".") != string::npos)
 					{
-						cash.setType(security::CURRENCY);
 						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
 						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
 						 */
@@ -281,7 +282,15 @@ void ibkr_parser::parse(void)
 					}
 					else
 					{
-						quanti = stod(tokenized[1]); /* amount already set for FX */
+						if (tokenized[0].find("Option") != string::npos)
+						{
+							cash.setType(security::OPTION);
+						}
+						else
+						{
+							cash.setType(security::EQUITY);
+							quanti = stod(tokenized[1]); /* amount already set for FX */
+						}
 					}
 				}
 
@@ -296,6 +305,19 @@ void ibkr_parser::parse(void)
 				}
 				//cout << "forex " << *tr << endl;
 				temp_cnt++;
+			}
+			else /* net cash activity */
+			{
+				cash.setName("NETCASH");
+				auto tr = std::make_unique<tranche>(cash, quanti, price, fee, false);
+				tr->setTimeStamp(tm);
+				if (quanti < 0) tr->setType(tranche::BUY);
+				else tr->setType(tranche::SELL);
+				tr->makeAbsolute();
+				if (cbk_forex)
+				{
+					cbk_forex(tm, tr);
+				}
 			}
 		}
 		else

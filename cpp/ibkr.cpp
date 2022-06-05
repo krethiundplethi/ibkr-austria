@@ -21,6 +21,7 @@ std::set <ibkr::currency::unit> g_foreign_currencies;
 std::map <ibkr::currency::unit, double> g_balances;
 std::map <ibkr::currency::unit, double> g_balances_in_eur;
 std::map <ibkr::currency::unit, double> g_avg_rate;
+std::map <ibkr::currency::unit, double> g_balances_guv;
 
 
 void cbk_stock(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
@@ -69,6 +70,7 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		g_foreign_currencies.insert(cu);
 		g_balances[cu] = 0.0;
 		g_balances_in_eur[cu] = 0.0;
+		g_balances_guv[cu] = 0.0;
 		g_avg_rate[cu] = 0.0;
 	}
 
@@ -88,7 +90,31 @@ void print_fee(int year, int mon, int day, double fx, double fx_bal, double eur,
 	/*       2022-07 ; Day   ; Symbol  ; K/V/WP ; */
 	printf("%4d-%02d ; %02d  ; FEE     ; F      ; ",  year, mon, day);
 	/*      USD     ; Bestand ; ; Soll EUR ; Haben EUR ; ; EUR gl.D.s. ;   Kurs    ; ; Ansatz EUR ; GuV ; Gebühren*/
-	printf("%11.02f ; %11.02f ; ; %9.02f ;           ; ; %11.02f ; %9.05f ; ; ", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
+	printf("%11.02f ; %11.02f ; ; %9.02f ;           ; ; %11.02f ; %10.06f ; ; ", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
+}
+
+
+void long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac)
+{
+	double long_part = 0.0;
+	double short_part = 0.0;
+
+	if ((balance >= 0) && ((balance + delta) >= 0)) { long_part = abs(delta); short_part = 0.0; }
+	else if ((balance <= 0) && ((balance + delta) <= 0)) { long_part = 0; short_part = abs(delta); }
+	else if ((balance > 0) && ((balance + delta) < 0)) { long_part = balance; short_part = abs(balance + delta); }
+	else if ((balance < 0) && ((balance + delta) > 0)) { long_part = balance + delta; short_part = abs(balance); }
+
+	if ((long_part != 0.0) || (short_part != 0.0))
+	{
+		long_frac = long_part / (long_part + short_part);
+		short_frac = short_part / (long_part + short_part);
+	}
+	else
+	{
+		printf("Long/short Warning");
+		long_frac = 1.0;
+		short_frac = 0.0;
+	}
 }
 
 
@@ -150,6 +176,8 @@ int main(int argc, char **argv)
 	{
 		for (int month = 0; month < 12; ++month)
 		{
+			g_balances_guv[currency] = 0.0;
+
 			printf("%4d-%02d ; Day ; Symbol  ; K/V/WP ; %-11s ;"
 				   "  Bestand    ; ; Soll EUR  ; Haben EUR ; ; EUR gl.D.s. ;"
 				   "   Kurs    ; ; Ansatz EUR; GuV          \n", g_year, month + 1, currency.name);
@@ -164,7 +192,7 @@ int main(int argc, char **argv)
 
 				if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 				{
-					if (t.getSecurity().getName() == "PATH")
+					if (t.getSecurity().getName() == "VRM")
 					{
 						printf("");
 					}
@@ -177,16 +205,16 @@ int main(int argc, char **argv)
 
 					if (t.getSecurity().getType() == security::EQUITY)
 					{
-						printf("%-6s ; ", t.isSell() ? "WPK" : "WPV"); /* buying equity == selling currency */
+						printf("%-6s ; ", t.isSell() ? "KWP" : "VWP"); /* buying equity == selling currency */
 						it = g_map_stock_trades.find(key);
 					}
 					else if (t.getSecurity().getType() == security::OPTION)
 					{
-						printf("%-6s ; ", t.isSell() ? "OPK" : "OPV");
+						printf("%-6s ; ", t.isSell() ? "KOPT" : "VOPT");
 					}
 					else
 					{
-						printf("%-6s ; ", t.isSell() ? "V" : "K");
+						printf("%-6s ; ", t.isSell() ? "KEUR" : "VEUR");
 					}
 
 					if (it != g_map_stock_trades.end())
@@ -266,43 +294,73 @@ int main(int argc, char **argv)
 
 					double old_balance = g_balances[currency];
 					double old_balance_eur = g_balances_in_eur[currency];
+					double long_frac = 0.0;
+					double short_frac = 0.0;
 
 					printf("%11.02f ; ", stock_paid * (t.isSell() ? -1.00 : 1.00));
 
+					long_and_short_fraction(g_balances[currency], stock_paid * (t.isSell() ? -1.00 : 1.00), long_frac, short_frac);
 					g_balances[currency] += stock_paid * (t.isSell() ? -1.00 : 1.00);
-					/* Hier wird der gleitendende Durchschnitt mittels old_balance angesetzt. */
 
+					/* Hier wird der gleitendende Durchschnitt mittels old_balance angesetzt.
+					 * Slightly more complicated that thought initially, because being short,
+					 * the logic is inverted. Selling updates running average, buying causes PnL.
+					 * */
 					if (!t.isSell())
 					{
 						/* whenever I get currency, the current EUR value is used, not the averaged one */
 						g_avg_rate[currency] = (g_avg_rate[currency] * old_balance + eur_paid) / (old_balance + stock_paid);
-						g_balances_in_eur[currency] += eur_paid;
+						g_balances_in_eur[currency] += long_frac * eur_paid;
+						if (old_balance != 0.0)
+						{
+							g_balances_in_eur[currency] += short_frac * (stock_paid * old_balance_eur / old_balance);
+						}
 					}
 					else
 					{
-						g_balances_in_eur[currency] += (stock_paid *  (t.isSell() ? -1.00 : 1.00) * old_balance_eur / old_balance);
+						g_balances_in_eur[currency] -= short_frac * eur_paid;
+						if (old_balance != 0.0)
+						{
+							g_balances_in_eur[currency] -= long_frac * (stock_paid * old_balance_eur / old_balance);
+						}
 					}
 
 					printf("%11.02f ; ", g_balances[currency]); 					/* Bestand */
 					printf(t.isSell() ? "; %9.02f ;           ; ; " :				/* Soll */
 							            ";           ; %9.02f ; ; ", eur_paid);		/* Haben */
 					printf("%11.02f ; ", g_balances_in_eur[currency]); 				/* Bestand EUR */
-					printf("%9.05f ; ; ", g_balances_in_eur[currency] / g_balances[currency]); 		/* Kurs */
+					printf("%10.06f ; ; ", g_balances_in_eur[currency] / g_balances[currency]); 		/* Kurs */
 
-					if (!t.isSell())
+					double guv = 0.0;
+					double ansatz = 0.0;
+
+					if (t.isSell())
 					{
-						/* whenever I get currency, the current EUR value is used, not the averaged one */
-						printf("%9.02f ; ", eur_paid); 		/* Ansatz */
-						printf("%12.05f ; ", 0.0); 		/* GuV */
+						ansatz = -short_frac * eur_paid;
+						if (old_balance != 0.0)
+						{
+							guv = long_frac * (eur_paid - stock_paid * old_balance_eur / old_balance);
+							ansatz -= long_frac * (stock_paid * old_balance_eur / old_balance);
+						}
 					}
 					else
 					{
-						printf("%9.02f ; ", stock_paid * old_balance_eur / old_balance); 		/* Ansatz */
-						printf("%12.05f ; ", eur_paid - stock_paid * old_balance_eur / old_balance); 		/* GuV */
+						ansatz = long_frac * eur_paid;
+						if (old_balance != 0.0)
+						{
+							guv = short_frac * (stock_paid * old_balance_eur / old_balance - eur_paid);
+							ansatz += short_frac * (stock_paid * old_balance_eur / old_balance);
+						}
 					}
 
+					g_balances_guv[currency] += guv;
 
+					/* whenever I get currency, the current EUR value is used, not the averaged one */
+					printf("%9.02f ; ", ansatz); 		/* Ansatz */
+					printf("%12.05f ; ", guv); 		/* GuV */
+					printf("%12.05f ; ", g_balances_guv[currency]); 		/* GuV kum */
 					printf("\n");
+
 					if (abs(stock_fee) > 0.00001)
 					{
 						/* Frage ist hier, welcher Kurs für Fremdwährungsspesen angesetzt wird. */
@@ -316,8 +374,11 @@ int main(int argc, char **argv)
 						print_fee(g_year, month + 1, tm.tm_mday, stock_fee,
 								g_balances[currency], eur_fee, g_balances_in_eur[currency]);
 
-						printf("%9.02f ; ", stock_fee * old_balance_eur / old_balance); 		/* Ansatz */
-						printf("%12.05f ; ", eur_fee - stock_fee * old_balance_eur / old_balance); 		/* GuV */
+						printf("%9.02f ; ", -stock_fee * old_balance_eur / old_balance); 		/* Ansatz */
+						double guv = eur_fee - stock_fee * old_balance_eur / old_balance;
+						printf("%12.05f ; ", guv); 		/* GuV */
+						g_balances_guv[currency] += guv;
+						printf("%12.05f ; ", g_balances_guv[currency]); 		/* GuV kum */
 						printf("\n");
 					}
 				}

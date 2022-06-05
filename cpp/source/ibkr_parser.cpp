@@ -55,6 +55,7 @@ enum col
 	QUANTI = 7,
 	EARNING = 8,
 	BASIS = 9,
+	CODE = 11,
 };
 
 } /* ns forex */
@@ -238,7 +239,19 @@ void ibkr_parser::parse(void)
 	    	std::stringstream ss2(v[csv::forex::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
-	    	double price_per_share = abs(stod(v[csv::forex::col::EARNING]) / stod(v[csv::forex::col::QUANTI]));
+			double quanti = -stod(v[csv::forex::col::QUANTI]);
+	    	int column_earning = csv::forex::col::EARNING;
+	    	double sign_earning = 1.0;
+
+	    	if ((quanti < 0.0) &&
+	    		(v.size() > csv::forex::col::CODE) &&
+				(v[csv::forex::col::CODE].front() == 'C'))
+	    	{
+	    		column_earning = csv::forex::col::BASIS;
+	    		sign_earning = -1.0;
+	    	}
+
+	    	double price_per_share = abs(stod(v[column_earning]) / stod(v[csv::forex::col::QUANTI]));
 
 	    	currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
@@ -253,8 +266,7 @@ void ibkr_parser::parse(void)
 			security cash(v[csv::forex::col::CLASS].c_str(), price);
 			cash.setType(security::CURRENCY);
 
-			price.value = stod(v[csv::forex::col::EARNING]);
-			double quanti = -stod(v[csv::forex::col::QUANTI]);
+			price.value = sign_earning * stod(v[column_earning]);
 
 			if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
 				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */

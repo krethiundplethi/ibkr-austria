@@ -19,14 +19,9 @@ tranche::tranche(const security &sec, double quanti, const  currency::price pric
 	timestamp.tm_year = 0;
 	timestamp.tm_mon = 0;
 	timestamp.tm_mday = 0;
+	filled = 0.0;
 
 	ordertype = sell ? SELL : BUY;
-}
-
-tranche::tranche(const tranche &rval)
-: sec {rval.sec}, quanti {rval.quanti}, price {rval.price}, fee {rval.fee}, timestamp {rval.timestamp}
-{
-	ordertype = rval.ordertype;
 }
 
 

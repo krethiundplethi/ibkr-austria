@@ -37,7 +37,7 @@ public:
 	inline const currency::price &getPrice() const { return price; }
 	inline const enum e_ordertype &getType() const { return ordertype; }
 	inline const double getQuanti() const { return quanti; }
-	inline const bool isFilled() const { return (abs(filled - quanti) < 0.00000001); }
+	inline const double unfilled() const { return quanti - filled; }
 	inline void fill(double fill) { filled += fill; }
 
 	inline const std::tm &getTimeStamp() const { return timestamp; }

@@ -30,7 +30,7 @@ namespace trades {
 
 enum col
 {
-	CLASS = 3,
+	CATEGORY = 3,
 	CURRENCY = 4,
 	SYMBOL = 5,
 	DATE = 6,
@@ -168,63 +168,46 @@ void ibkr_parser::parse(void)
 		{
 	    	std::stringstream ss2(v[csv::trades::col::DATE]);
 	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+			currency::price price = {currency::USD, 0.0};
+			price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
+			price.value = stod(v[csv::trades::col::PRICE]);
+			security sec(v[csv::trades::col::SYMBOL], price);
+
+			int amount = stoi(v[csv::trades::col::AMOUNT]);
+			currency::price fee = {currency::USD, stod(v[csv::trades::col::FEE])};
+			price.value = stod(v[csv::trades::col::COSTN]);
+
+			auto p_tranche = std::make_unique<tranche>(sec, amount, price, fee, false);
+			if (amount < 0) p_tranche->setType(tranche::SELL);
+			p_tranche->makeAbsolute();
 
 	    	switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
 		    {
 		    	case trade::type::STOCKS:
 		    	{
-					currency::price price = {currency::USD, 0.0};
-					price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
-					price.value = stod(v[csv::trades::col::PRICE]);
-					const security aktie(v[csv::trades::col::SYMBOL], price);
-
-					int amount = stoi(v[csv::trades::col::AMOUNT]);
-					currency::price fee = {currency::USD, stod(v[csv::trades::col::FEE])};
-					price.value = stod(v[csv::trades::col::COSTN]);
-
-					auto p_tranche = std::make_unique<tranche>(aktie, amount, price, fee, false);
-					if (amount < 0) p_tranche->setType(tranche::SELL);
-					p_tranche->makeAbsolute();
-					if (cbk_stock)
+		    		sec.setType(security::EQUITY);
+					if (cbk_stock_trade)
 					{
-						cbk_stock(tm, p_tranche);
+						cbk_stock_trade(tm, p_tranche);
 					}
 		    	} break;
 
 		    	case trade::type::FOREX:
 		    	{
-					auto currency = currency_from_vector(v, csv::trades::col::CURRENCY);
-					currency::price price = {
-							currency,
-							stod(v[csv::trades::col::AMOUNT]) / stod(v[csv::trades::col::PRICE])
-					};
-					security cash(v[csv::trades::col::CLASS].c_str(), price);
-
-
-					currency::price fee = {currency, stod(v[csv::trades::col::FEE])};
-					price.value = stod(v[csv::trades::col::PRICE]);
-					int amount = stoi(v[csv::trades::col::AMOUNT]);
-
-					vector <string> iv;
-					vectorize_inner(v[csv::trades::col::CLASS], iv);
-
-					auto tr = std::make_unique<tranche>(cash, amount, price, fee, false);
-					tr->setTimeStamp(tm);
-					if (amount < 0) tr->setType(tranche::SELL);
-					tr->makeAbsolute();
-					if (cbk_forex)
+		    		sec.setType(security::CURRENCY);
+					if (cbk_forex_trade)
 					{
-						//cbk_forex(tm, tr);
-						// TODO:FIXME
+						cbk_forex_trade(tm, p_tranche);
 					}
 					//cout << "CASH " << *tr << endl;
 		    	} break;
 
 		    	case trade::type::OPTIONS:
 		    	{
-		    		if (cbk_options)
+		    		sec.setType(security::OPTION);
+		    		if (cbk_options_trade)
 		    		{
-		    			cout << "OPTI" << endl;
+		    			cbk_options_trade(tm, p_tranche);
 		    		}
 		    	} break;
 
@@ -289,14 +272,18 @@ void ibkr_parser::parse(void)
 						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
 						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
 						 */
-						double eur = abs(stod(tokenized[1]));
-						fee.value = abs(price.value - eur);
+						//double eur = abs(stod(tokenized[1]));
+						//fee.value = abs(price.value - eur);
+						// the fee can only be calculated, if one part was EUR.
+						// otherwise it is wrong. e.g. for RUB.USD. In such cases
+						// the fee is to be found in the order!
 					}
 					else
 					{
 						if (tokenized[0].find("Option") != string::npos)
 						{
 							cash.setType(security::OPTION);
+							quanti = stod(tokenized[1]); /* amount already set for FX */
 						}
 						else
 						{

@@ -22,6 +22,7 @@ enum class symbol {
 	USD,
 	AUD,
 	CAD,
+	GBP,
 	RUB,
 	UNKNOWN
 };

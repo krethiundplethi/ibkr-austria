@@ -7,4 +7,7 @@ include_directories(source include)
 set(CMAKE_BUILD_TYPE Debug)
 
 
-add_executable(ibkr ibkr.cpp source/ibkr_parser.cpp source/currency.cpp source/ledger.cpp source/tranche.cpp source/security.cpp)
+add_executable(ibkr ibkr.cpp 
+	source/ibkr_parser.cpp source/pnl_forex.cpp 
+	source/currency.cpp source/ledger.cpp source/tranche.cpp source/security.cpp 
+)

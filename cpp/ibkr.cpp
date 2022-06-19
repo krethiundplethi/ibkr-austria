@@ -9,7 +9,11 @@
 
 #include <iostream>
 #include <set>
+
+#include "pnl.hpp"
 #include "pnl_forex.hpp"
+#include "pnl_equity.hpp"
+
 
 using namespace std;
 using namespace ibkr;
@@ -59,9 +63,9 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		tokenized.push_back(token);
 	}
 
-	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%s",
-			1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
-			tm.tm_hour, tm.tm_min, tm.tm_sec,
+	snprintf(buf, 31, "%04u%02u%s",
+			1900 + tm.tm_year, 1 + tm.tm_mon, //tm.tm_mday,
+			//tm.tm_hour, tm.tm_min, tm.tm_sec,
 			tokenized.back().c_str());
 
 	const currency::unit &cu = p_tranche->getPrice().unit;
@@ -92,11 +96,13 @@ int main(int argc, char **argv)
 {
     //CLI::App app{"Tax calc"};
     std::string filename("C:\\Development\\github\\ibkr-austria\\U6443611_20210618_20211231.csv");
+    bool verbose = true;
     //app.add_option("-f,--file", filename, "csv file from IBKR");
+    //app.add_option("-v,--verbose", verbose, "be verbose");
 
     //CLI11_PARSE(app, argc, argv);
 
-	cout << "Opening file: " << filename << endl;
+	if (verbose) cout << "Opening file: " << filename << endl;
 
 	ibkr_parser parser(filename);
 	parser.register_callback_on_stock_trade(cbk_trade);
@@ -105,30 +111,39 @@ int main(int argc, char **argv)
 	parser.register_callback_on_forex(cbk_forex);
 	parser.parse();
 
-	/** complete output for debug **/
-
-	for (auto const &elem: data.map_trades)
+	if (verbose)
 	{
-		cout << elem.first << ": " << *elem.second << endl;
-	}
+		for (auto const &elem: data.foreign_currencies)
+		{
+			cout << elem << endl;
+		}
 
-	for (auto const &elem: data.map_forex)
-	{
-		cout << elem.first << "> " << *elem.second << endl;
-	}
+		for (auto const &elem: data.map_trades)
+		{
+			cout << elem.first << ": " << *elem.second << endl;
+		}
 
-	for (auto const &elem: data.foreign_currencies)
-	{
-		cout << elem << endl;
+		for (auto const &elem: data.map_forex)
+		{
+			cout << elem.first << "> " << *elem.second << endl;
+		}
+
+		cout.flush();
 	}
-	cout.flush();
 
 	double overall_profit = 0.0;
 	double overall_losses = 0.0;
-
+/*
 	for (auto const currency : data.foreign_currencies)
 	{
 		pnl::forex_calc(currency, overall_profit, overall_losses, data);
+	}
+*/
+
+	data.foreign_currencies.insert(ibkr::currency::EUR);
+	for (auto const currency : data.foreign_currencies)
+	{
+		pnl::equity_calc(currency, overall_profit, overall_losses, data);
 	}
 
 

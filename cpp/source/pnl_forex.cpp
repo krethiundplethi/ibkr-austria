@@ -10,34 +10,11 @@ namespace {
 void print_fee(int year, int mon, int day, double fx, double fx_bal, double eur, double eur_bal)
 {
 	/*       2022-07 ; Day   ; Symbol  ; K/V/WP ; */
-	printf("%4d-%02d;%02d;FEE    ;F     ;",  year, mon, day);
+	printf("%4d-%02d %02d FEE     F      ",  year, mon, day);
 	/*      USD     ; Bestand ; ; Soll EUR ; Haben EUR ; ; EUR gl.D.s. ;   Kurs    ; ; Ansatz EUR ; GuV ; Gebühren*/
-	printf("%11.02f;%11.02f;%10.02f;          ;%11.02f;%10.06f;", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
+	printf("%11.02f %11.02f %10.02f            %11.02f %10.06f ", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
 }
 
-
-void long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac)
-{
-	double long_part = 0.0;
-	double short_part = 0.0;
-
-	if ((balance >= 0) && ((balance + delta) >= 0)) { long_part = std::abs(delta); short_part = 0.0; }
-	else if ((balance <= 0) && ((balance + delta) <= 0)) { long_part = 0; short_part = std::abs(delta); }
-	else if ((balance > 0) && ((balance + delta) < 0)) { long_part = balance; short_part = std::abs(balance + delta); }
-	else if ((balance < 0) && ((balance + delta) > 0)) { long_part = balance + delta; short_part = std::abs(balance); }
-
-	if ((long_part != 0.0) || (short_part != 0.0))
-	{
-		long_frac = long_part / (long_part + short_part);
-		short_frac = short_part / (long_part + short_part);
-	}
-	else
-	{
-		printf("Long/short Warning");
-		long_frac = 1.0;
-		short_frac = 0.0;
-	}
-}
 
 
 const char *transaction_code(const ibkr::tranche &t)
@@ -63,7 +40,11 @@ const char *transaction_code(const ibkr::tranche &t)
 } /* unnamed namespace */
 
 
-namespace pnl {
+namespace ibkr
+{
+
+namespace pnl
+{
 
 
 /** Walk all data and print PnL tax report.
@@ -79,9 +60,9 @@ void forex_calc(
 {
 	for (int month = 0; month < 12; ++month)
 	{
-		printf("%4d-%02d;D ;Symbol ;K/V/WP;%11s;"
-			   "    Bestand; Soll(EUR);Haben(EUR);   EUR(glD);"
-			   "      Kurs;Basis(EUR);    GuV(EUR);\n", data.year, month + 1, currency.name);
+		printf("%4d-%02d D  Symbol  K/V/WP %11s "
+			   "    Bestand  Soll(EUR) Haben(EUR)    EUR(glD) "
+			   "      Kurs Basis(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)\n", data.year, month + 1, currency.name);
 
 		for (auto const &elem: data.map_forex)
 		{
@@ -231,20 +212,20 @@ void forex_calc(
 				if (guv > 0) data.balances_profit[currency] += guv;
 				else data.balances_losses[currency] += guv;
 
-				printf("%4d-%02d;%02d;",  data.year, month+1, tm.tm_mday);
-				printf("%-7s;", t.getSecurity().getName().c_str());
-				printf("%-6s;", transaction_code(t));
+				printf("%4d-%02d %02d ",  data.year, month+1, tm.tm_mday);
+				printf("%-7s ", t.getSecurity().getName().c_str());
+				printf("%-6s ", transaction_code(t));
 
-				printf("%11.02f;", stock_paid * (t.isSell() ? -1.00 : 1.00)); /* Fremdw  */
-				printf("%11.02f;", data.balances[currency]); 					/* Bestand */
-				printf(t.isSell() ? "%10.02f;          ;" :				/* Soll */
-									"          ;%10.02f;", eur_paid);		/* Haben */
-				printf("%11.02f;", data.balances_in_eur[currency]); 				/* Bestand EUR */
-				printf("%10.06f;", data.balances_in_eur[currency] / data.balances[currency]); 		/* Kurs */
-				printf("%10.02f;", ansatz); 		/* Ansatz */
-				printf("%12.05f;", guv); 		/* GuV */
-				printf("%12.05f;", data.balances_profit[currency]); 		/* Gewinn kum */
-				printf("%12.05f;", data.balances_losses[currency]); 		/* Verlust kum */
+				printf("%11.02f ", stock_paid * (t.isSell() ? -1.00 : 1.00)); /* Fremdw  */
+				printf("%11.02f ", data.balances[currency]); 					/* Bestand */
+				printf(t.isSell() ? "%10.02f            " :				/* Soll */
+									"           %10.02f ", eur_paid);		/* Haben */
+				printf("%11.02f ", data.balances_in_eur[currency]); 				/* Bestand EUR */
+				printf("%10.06f ", data.balances_in_eur[currency] / data.balances[currency]); 		/* Kurs */
+				printf("%10.02f ", ansatz); 		/* Ansatz */
+				printf("%12.05f ", guv); 		/* GuV */
+				printf("%12.05f ", data.balances_profit[currency]); 		/* Gewinn kum */
+				printf("%12.05f ", data.balances_losses[currency]); 		/* Verlust kum */
 				printf("\n");
 
 				if (std::abs(stock_fee) > 0.00001)
@@ -263,13 +244,13 @@ void forex_calc(
 					print_fee(data.year, month + 1, tm.tm_mday, stock_fee,
 							data.balances[currency], eur_fee, data.balances_in_eur[currency]);
 
-					printf("%10.02f;", -stock_fee * old_balance_eur / old_balance); 		/* Ansatz */
+					printf("%10.02f ", -stock_fee * old_balance_eur / old_balance); 		/* Ansatz */
 					double guv = eur_fee - stock_fee * old_balance_eur / old_balance;
-					printf("%12.05f;", guv); 		/* GuV */
+					printf("%12.05f ", guv); 		/* GuV */
 					if (guv > 0) data.balances_profit[currency] += guv;
 					else data.balances_losses[currency] += guv;
-					printf("%12.05f;", data.balances_profit[currency]); 		/* Gewinn kum */
-					printf("%12.05f;", data.balances_losses[currency]); 		/* Verlust kum */
+					printf("%12.05f ", data.balances_profit[currency]); 		/* Gewinn kum */
+					printf("%12.05f ", data.balances_losses[currency]); 		/* Verlust kum */
 					printf("\n");
 				}
 			}
@@ -279,16 +260,17 @@ void forex_calc(
 
 	overall_losses += data.balances_losses[currency];
 	overall_profit += data.balances_profit[currency];
-	printf("=======;==;=======;======;===========;");
-	printf("===========;"); 					/* Bestand */
-	printf("==========;==========;===========;");
-	printf("===========;"); 				/* Bestand EUR */
-	printf("===========;"); 		/* Kurs */
-	printf("==========;");
-	printf("%12.05f;", overall_profit); 		/* Gewinn kum */
-	printf("%12.05f;", overall_losses); 		/* Verlust kum */
+	printf("======= == ======= ====== =========== ");
+	printf("%11s ", currency.name); 					/* Bestand */
+	printf("========== ========== =========== ");
+	printf("=========== "); 				/* Bestand EUR */
+	printf("=========== "); 		/* Kurs */
+	printf("========== ");
+	printf("%12.05f ", overall_profit); 		/* Gewinn kum */
+	printf("%12.05f ", overall_losses); 		/* Verlust kum */
 	printf("\n");
 
+}
 }
 
 

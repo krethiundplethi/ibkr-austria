@@ -1,5 +1,5 @@
-#ifndef SOURCE_PNL_FOREX_HPP_
-#define SOURCE_PNL_FOREX_HPP_
+#ifndef SOURCE_PNL_EQUITY_HPP_
+#define SOURCE_PNL_EQUITY_HPP_
 
 #include "pnl.hpp"
 #include "tranche.hpp"
@@ -8,7 +8,6 @@
 #include <map>
 #include <memory>
 
-
 namespace ibkr
 {
 
@@ -16,9 +15,7 @@ namespace pnl
 {
 
 
-
-
-void forex_calc(
+void equity_calc(
 	const ibkr::currency::unit &currency,
 	double &g_overall_profit,
 	double &g_overall_losses,
@@ -29,5 +26,4 @@ void forex_calc(
 } /* namespace pnl */
 
 }
-
 #endif

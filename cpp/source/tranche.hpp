@@ -10,10 +10,12 @@
 #ifndef SOURCE_TRANCHE_H_
 #define SOURCE_TRANCHE_H_
 
-#include <iostream>
-#include <ctime>
 #include "security.hpp"
 #include "currency.hpp"
+
+#include <iostream>
+#include <ctime>
+#include <memory>
 
 
 namespace ibkr
@@ -32,6 +34,7 @@ public:
 	tranche(const security &security, double quanti, const currency::price price, const currency::price fee, bool sell);
 
 	inline void setType(enum e_ordertype ot) {ordertype = ot; }
+	inline security &getSecurity() { return sec; }
 	inline const security &getSecurity() const { return sec; }
 	inline const currency::price &getFee() const { return fee; }
 	inline const currency::price &getPrice() const { return price; }
@@ -39,6 +42,7 @@ public:
 	inline const double getQuanti() const { return quanti; }
 	inline const double unfilled() const { return quanti - filled; }
 	inline void fill(double fill) { filled += fill; }
+	inline void unfill(void) { filled = 0.0; }
 
 	inline const std::tm &getTimeStamp() const { return timestamp; }
 	inline void setTimeStamp(std::tm const &tm) { timestamp = tm; }
@@ -49,7 +53,7 @@ public:
 	~tranche() { };
 
 private:
-	const security sec;
+	security sec;
 	double quanti;
 	double filled;
 	std::tm timestamp;
@@ -60,7 +64,7 @@ private:
 
 
 std::ostream &operator<<(std::ostream &, const tranche &);
-
+bool tranche_compare(std::shared_ptr<ibkr::tranche> t1, std::shared_ptr<ibkr::tranche> t2);
 
 
 } /* namespace ibkr */

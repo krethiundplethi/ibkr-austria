@@ -24,6 +24,7 @@ enum class symbol {
 	CAD,
 	GBP,
 	RUB,
+	CHF,
 	UNKNOWN
 };
 
@@ -34,6 +35,9 @@ struct unit
 	const char *name;
 
 	bool operator<(const unit &r) const { return id < r.id; }
+	bool operator==(const unit &r) const { return id == r.id; }
+	bool operator!=(const unit &r) const { return !(*this == r); }
+
 };
 
 
@@ -61,9 +65,11 @@ MAKE_CURRENCY_STRUCT(USD);
 MAKE_CURRENCY_STRUCT(CAD);
 MAKE_CURRENCY_STRUCT(AUD);
 MAKE_CURRENCY_STRUCT(RUB);
+MAKE_CURRENCY_STRUCT(CHF);
+MAKE_CURRENCY_STRUCT(GBP);
 MAKE_CURRENCY_STRUCT(UNKNOWN);
 
-constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, UNKNOWN };
+constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, GBP, UNKNOWN };
 
 }
 } /* namespace ibkr */

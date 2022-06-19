@@ -178,6 +178,7 @@ void ibkr_parser::parse(void)
 			price.value = stod(v[csv::trades::col::COSTN]);
 
 			auto p_tranche = std::make_unique<tranche>(sec, amount, price, fee, false);
+			p_tranche->setTimeStamp(tm);
 			if (amount < 0) p_tranche->setType(tranche::SELL);
 			p_tranche->makeAbsolute();
 
@@ -185,7 +186,7 @@ void ibkr_parser::parse(void)
 		    {
 		    	case trade::type::STOCKS:
 		    	{
-		    		sec.setType(security::EQUITY);
+		    		p_tranche->getSecurity().setType(security::EQUITY);
 					if (cbk_stock_trade)
 					{
 						cbk_stock_trade(tm, p_tranche);
@@ -194,7 +195,7 @@ void ibkr_parser::parse(void)
 
 		    	case trade::type::FOREX:
 		    	{
-		    		sec.setType(security::CURRENCY);
+		    		p_tranche->getSecurity().setType(security::CURRENCY);
 					if (cbk_forex_trade)
 					{
 						cbk_forex_trade(tm, p_tranche);
@@ -204,7 +205,7 @@ void ibkr_parser::parse(void)
 
 		    	case trade::type::OPTIONS:
 		    	{
-		    		sec.setType(security::OPTION);
+		    		p_tranche->getSecurity().setType(security::OPTION);
 		    		if (cbk_options_trade)
 		    		{
 		    			cbk_options_trade(tm, p_tranche);
@@ -325,7 +326,7 @@ void ibkr_parser::parse(void)
 		}
 	} /* while getline */
 
-	printf("ibkr_parser summary: %d\n", temp_cnt);
+	//printf("ibkr_parser summary: %d\n", temp_cnt);
 } /* parse */
 
 

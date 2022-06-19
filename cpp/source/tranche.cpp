@@ -43,4 +43,31 @@ std::ostream &operator<<(std::ostream &os, const tranche &t)
 }
 
 
+bool tranche_compare(std::shared_ptr<ibkr::tranche> t1, std::shared_ptr<ibkr::tranche> t2)
+{
+	const std::tm &ts1 = t1->getTimeStamp();
+	const std::tm &ts2 = t2->getTimeStamp();
+
+	if (t1->getSecurity().getName().compare(t2->getSecurity().getName()) < 0) return true;
+	if (t1->getSecurity().getName().compare(t2->getSecurity().getName()) > 0) return false;
+
+	if (ts1.tm_mon < ts2.tm_mon) return true;
+	if (ts1.tm_mon > ts2.tm_mon) return false;
+
+	if (ts1.tm_mday < ts2.tm_mday) return true;
+	if (ts1.tm_mday > ts2.tm_mday) return false;
+
+	if (ts1.tm_hour < ts2.tm_hour) return true;
+	if (ts1.tm_hour > ts2.tm_hour) return false;
+
+	if (ts1.tm_min < ts2.tm_min) return true;
+	if (ts1.tm_min > ts2.tm_min) return false;
+
+	if (ts1.tm_sec < ts2.tm_sec) return true;
+	if (ts1.tm_sec > ts2.tm_sec) return false;
+
+	return false;
+}
+
+
 } /* namespace ibkr */

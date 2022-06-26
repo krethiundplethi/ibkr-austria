@@ -69,7 +69,7 @@ MAKE_CURRENCY_STRUCT(CHF);
 MAKE_CURRENCY_STRUCT(GBP);
 MAKE_CURRENCY_STRUCT(UNKNOWN);
 
-constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, GBP, UNKNOWN };
+constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, GBP, CHF, UNKNOWN };
 
 }
 } /* namespace ibkr */

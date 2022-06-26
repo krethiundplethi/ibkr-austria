@@ -21,6 +21,7 @@ using namespace ibkr;
 struct pnl::inout_data data;
 
 
+
 void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
 	char buf[32];
@@ -47,7 +48,6 @@ void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
-	char buf[32];
 	// cout << "STONK " << *p_tranche << endl;
 	//auto buf = std::make_unique<char[]>(32); /*only 17, better safe than sorry YYYYMMDDHHMMSSxxx*/
 
@@ -63,9 +63,17 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		tokenized.push_back(token);
 	}
 
-	snprintf(buf, 31, "%04u%02u%s",
-			1900 + tm.tm_year, 1 + tm.tm_mon, //tm.tm_mday,
-			//tm.tm_hour, tm.tm_min, tm.tm_sec,
+	/* key for forex */
+	char buf[32];
+	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%s",
+			1900 + tm.tm_year, 1 + tm.tm_mon,
+			tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
+			tokenized.back().c_str());
+
+	char buf2[32];
+	snprintf(buf2, 31, "%04u%02u%s",
+			1900 + tm.tm_year, 1 + tm.tm_mon,
+			//tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, /* fixme: only works for forex, not equity --> find better datastructure */
 			tokenized.back().c_str());
 
 	const currency::unit &cu = p_tranche->getPrice().unit;
@@ -85,8 +93,15 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	{
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
-
 	data.map_forex[key] = std::move(p_tranche);
+
+	cnt = 0;
+	auto key2 = std::string(buf2) + "-" + std::to_string(cnt);
+	while (data.map_forex_lut.find(key2) != data.map_forex_lut.end())
+	{
+		key2 = std::string(buf2) + "-" + std::to_string(++cnt);
+	}
+	data.map_forex_lut[key2] = data.map_forex[key];
 }
 
 
@@ -133,12 +148,14 @@ int main(int argc, char **argv)
 
 	double overall_profit = 0.0;
 	double overall_losses = 0.0;
-/*
+
 	for (auto const currency : data.foreign_currencies)
 	{
 		pnl::forex_calc(currency, overall_profit, overall_losses, data);
 	}
-*/
+
+	overall_profit = 0.0;
+	overall_losses = 0.0;
 
 	data.foreign_currencies.insert(ibkr::currency::EUR);
 	for (auto const currency : data.foreign_currencies)

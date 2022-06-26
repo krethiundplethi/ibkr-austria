@@ -57,7 +57,7 @@ void equity_calc(
 
 		if (prev_symbol != t.getSecurity().getName())
 		{
-			printf("Symbol Datum   K/V Menge Kurs(%s)  Preis(EUR) Bestand   Kumm(EUR)    glD(EUR)      Ansatz       GuV      Gewinn     Verlust ", t.getSecurity().getPrice().unit.name);
+			printf("Symbol Datum      1   Menge Kurs(%s)  Preis(EUR) Bestand   Kumm(EUR)    glD(EUR)      Ansatz       GuV      Gewinn     Verlust ", t.getSecurity().getPrice().unit.name);
 			printf("  SummGuV  SummGewinn SummVerlust");
 			printf("\n");
 		}
@@ -91,8 +91,8 @@ void equity_calc(
 			while (cnt <= 99)
 			{
 				key = construct_key(tm, symbol.c_str(), cnt);
-				auto it = data.map_forex.find(key);
-				if (it == data.map_forex.end())
+				auto it = data.map_forex_lut.find(key);
+				if (it == data.map_forex_lut.end())
 				{
 					break;
 				}

@@ -27,6 +27,7 @@ struct inout_data
 	int year = 2021;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_trades;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex;
+	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex_lut;
 	std::set <ibkr::currency::unit> foreign_currencies;
 	std::map <ibkr::currency::unit, double> balances;
 	std::map <ibkr::currency::unit, double> balances_in_eur;

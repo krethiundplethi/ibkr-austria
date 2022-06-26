@@ -65,7 +65,7 @@ private:
 
 std::ostream &operator<<(std::ostream &, const tranche &);
 bool tranche_compare(std::shared_ptr<ibkr::tranche> t1, std::shared_ptr<ibkr::tranche> t2);
-
+bool tranche_date_compare(ibkr::tranche const &t1, ibkr::tranche const &t2);
 
 } /* namespace ibkr */
 

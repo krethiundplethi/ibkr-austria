@@ -14,6 +14,7 @@
 #include <ctime>
 #include <iomanip>
 #include <cmath>
+#include <regex>
 
 
 namespace ibkr {
@@ -39,7 +40,7 @@ enum col
 	COSTN = 9,
 	FEE = 10,
 	COSTG = 11,
-	PNL = 12
+	PNL = 12,
 };
 
 } /* ns trades */
@@ -59,6 +60,20 @@ enum col
 };
 
 } /* ns forex */
+
+namespace holding {
+
+enum col
+{
+	TYPE = 1,
+	SYMBOL = 2,
+	AMOUNT = 3,
+	BASIS = 4,
+	PRICE = 5,
+};
+
+} /* ns holding */
+
 
 } /* ns csv */
 
@@ -91,6 +106,8 @@ void vectorize(const string &s, vector <string> &result)
 
 	while (getline(ss, token, csv::delimiter))
 	{
+		token = std::regex_replace(token, std::regex("^ +"), ""); // remove one or more leading blanks
+		token = std::regex_replace(token, std::regex(" +$"), ""); // remove one or more trailing blanks
 		if (escaped && (token[token.length() - 1] == '\"'))
 		{
 			temp += token;
@@ -142,32 +159,58 @@ void ibkr_parser::parse(void)
 	timepoint tp;
 	bool isTrade = false;
 	bool isForex = false;
+	bool isHolding = false;
 
 	int temp_cnt = 0;
 
 	while (getline(istream, line))
 	{
-    	std::tm tm; /* timestamp of each entry */
+		std::tm tm; /* timestamp of each entry */
 
 		isTrade = line.rfind("Trades,Data,Order", 0) == 0;
 		isForex = line.rfind("Forex P/L Details,Data,Forex", 0) == 0;
+		isHolding = line.rfind("Initial Holding", 0) == 0;
 
 		vector <string> v;
 
-	    if (isTrade || isForex)
-	    {
-	    	vectorize(line, v);
-			/* fixme debug logging
-		    cout << line << endl;
-	    	copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
-	    	cout << endl;
-			 */
-	    }
-
-	    if (isTrade)
+		if (isTrade || isForex || isHolding)
 		{
-	    	std::stringstream ss2(v[csv::trades::col::DATE]);
-	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+			vectorize(line, v);
+			/* fixme debug logging
+			cout << line << endl;
+			copy(v.begin(), v.end(), ostream_iterator<string>(cout, "|"));
+			cout << endl;
+			 */
+		}
+
+		if (isHolding)
+		{
+			currency::price price_all = {currency::EUR, stod(v[csv::holding::col::BASIS])};
+			currency::price price_one = {currency::EUR, stod(v[csv::holding::col::PRICE])};
+
+			security sec(v[csv::holding::col::SYMBOL], price_one);
+
+			double amount = stod(v[csv::holding::col::AMOUNT]);
+
+			auto p_tranche = std::make_unique<tranche>(sec, amount, price_all, currency::price {currency::USD, 0.0});
+			p_tranche->setType(tranche::HOLD);
+
+			std::string s {v[csv::holding::col::TYPE]};
+			if (s.rfind("Cash", 0) == 0)
+			{
+				p_tranche->getSecurity().setType(security::CURRENCY);
+			}
+			else
+			{
+				p_tranche->getSecurity().setType(security::EQUITY);
+			}
+
+			if (cbk_initial_holding) cbk_initial_holding(tm, p_tranche);
+		}
+		else if (isTrade)
+		{
+			std::stringstream ss2(v[csv::trades::col::DATE]);
+			ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 			currency::price price = {currency::USD, 0.0};
 			price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
 			price.value = stod(v[csv::trades::col::PRICE]);
@@ -182,62 +225,62 @@ void ibkr_parser::parse(void)
 			if (amount < 0) p_tranche->setType(tranche::SELL);
 			p_tranche->makeAbsolute();
 
-	    	switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
-		    {
-		    	case trade::type::STOCKS:
-		    	{
-		    		p_tranche->getSecurity().setType(security::EQUITY);
+			switch (match_to_id<const trade::unit>(v[3], trade::match, sizeof(trade::match)/sizeof(trade::match[0])))
+			{
+				case trade::type::STOCKS:
+				{
+					p_tranche->getSecurity().setType(security::EQUITY);
 					if (cbk_stock_trade)
 					{
 						cbk_stock_trade(tm, p_tranche);
 					}
-		    	} break;
+				} break;
 
-		    	case trade::type::FOREX:
-		    	{
-		    		p_tranche->getSecurity().setType(security::CURRENCY);
+				case trade::type::FOREX:
+				{
+					p_tranche->getSecurity().setType(security::CURRENCY);
 					if (cbk_forex_trade)
 					{
 						cbk_forex_trade(tm, p_tranche);
 					}
 					//cout << "CASH " << *tr << endl;
-		    	} break;
+				} break;
 
-		    	case trade::type::OPTIONS:
-		    	{
-		    		p_tranche->getSecurity().setType(security::OPTION);
-		    		if (cbk_options_trade)
-		    		{
-		    			cbk_options_trade(tm, p_tranche);
-		    		}
-		    	} break;
+				case trade::type::OPTIONS:
+				{
+					p_tranche->getSecurity().setType(security::OPTION);
+					if (cbk_options_trade)
+					{
+						cbk_options_trade(tm, p_tranche);
+					}
+				} break;
 
-		    	default:
+				default:
 				{
 					cout << "NAN!" << endl;
 				} break;
-		    }
+			}
 		}
 		else if (isForex)
 		{
-	    	std::stringstream ss2(v[csv::forex::col::DATE]);
-	    	ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+			std::stringstream ss2(v[csv::forex::col::DATE]);
+			ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 
 			double quanti = -stod(v[csv::forex::col::QUANTI]);
-	    	int column_earning = csv::forex::col::EARNING;
-	    	double sign_earning = 1.0;
+			int column_earning = csv::forex::col::EARNING;
+			double sign_earning = 1.0;
 
-	    	if ((quanti < 0.0) &&
-	    		(v.size() > csv::forex::col::CODE) &&
+			if ((quanti < 0.0) &&
+				(v.size() > csv::forex::col::CODE) &&
 				(v[csv::forex::col::CODE].front() == 'C'))
-	    	{
-	    		column_earning = csv::forex::col::BASIS;
-	    		sign_earning = -1.0;
-	    	}
+			{
+				column_earning = csv::forex::col::BASIS;
+				sign_earning = -1.0;
+			}
 
-	    	double price_per_share = abs(stod(v[column_earning]) / stod(v[csv::forex::col::QUANTI]));
+			double price_per_share = abs(stod(v[column_earning]) / stod(v[csv::forex::col::QUANTI]));
 
-	    	currency::price price = {
+			currency::price price = {
 				currency_from_vector(v, csv::forex::col::CURRENCY),
 				price_per_share
 			};
@@ -299,10 +342,8 @@ void ibkr_parser::parse(void)
 				if (quanti < 0) tr->setType(tranche::BUY);
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
-				if (cbk_forex)
-				{
-					cbk_forex(tm, tr);
-				}
+
+				if (cbk_forex) cbk_forex(tm, tr);
 				//cout << "forex " << *tr << endl;
 				temp_cnt++;
 			}
@@ -314,10 +355,8 @@ void ibkr_parser::parse(void)
 				if (quanti < 0) tr->setType(tranche::BUY);
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
-				if (cbk_forex)
-				{
-					cbk_forex(tm, tr);
-				}
+
+				if (cbk_forex) cbk_forex(tm, tr);
 			}
 		}
 		else

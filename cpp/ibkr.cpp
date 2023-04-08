@@ -21,6 +21,11 @@ using namespace ibkr;
 struct pnl::inout_data data;
 
 
+void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+{
+	cout << "HODL " << *p_tranche << endl;
+}
+
 
 void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
@@ -48,11 +53,6 @@ void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
-	// cout << "STONK " << *p_tranche << endl;
-	//auto buf = std::make_unique<char[]>(32); /*only 17, better safe than sorry YYYYMMDDHHMMSSxxx*/
-
-	/* man, c++ can be shitty. doing this in a safe way is 15 lines of code. so'll do it unsafe. */
-
 	auto ss = stringstream(p_tranche->getSecurity().getName());
 	string token;
 	vector <std::string> tokenized;
@@ -110,16 +110,22 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 int main(int argc, char **argv)
 {
     //CLI::App app{"Tax calc"};
-    std::string filename("C:\\Development\\github\\ibkr-austria\\U6443611_20210618_20211231.csv");
+    std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\U6443611_20220103_20221230.csv");
+    std::string filename_initial_holdings("C:\\Development\\github\\ibkr-austria\\Bestand_2021-12-31.csv");
     bool verbose = true;
     //app.add_option("-f,--file", filename, "csv file from IBKR");
     //app.add_option("-v,--verbose", verbose, "be verbose");
 
     //CLI11_PARSE(app, argc, argv);
 
-	if (verbose) cout << "Opening file: " << filename << endl;
+	if (verbose) cout << "Opening file: " << filename_initial_holdings << endl;
+	ibkr_parser parser1(filename_initial_holdings);
+	parser1.register_callback_on_initial_holding(cbk_holdings);
+	parser1.parse();
 
-	ibkr_parser parser(filename);
+	if (verbose) cout << "Opening file: " << filename_transactions << endl;
+
+	ibkr_parser parser(filename_transactions);
 	parser.register_callback_on_stock_trade(cbk_trade);
 	parser.register_callback_on_forex_trade(cbk_trade);
 	parser.register_callback_on_options_trade(cbk_trade);

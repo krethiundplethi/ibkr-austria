@@ -27,11 +27,12 @@ public:
 	enum e_ordertype
 	{
 		BUY,
-		SELL
+		SELL,
+		HOLD
 	};
 
 	tranche() = delete;
-	tranche(const security &security, double quanti, const currency::price price, const currency::price fee, bool sell);
+	tranche(const security &security, double quanti, const currency::price price, const currency::price fee, bool sell = false);
 
 	inline void setType(enum e_ordertype ot) {ordertype = ot; }
 	inline security &getSecurity() { return sec; }
@@ -49,6 +50,7 @@ public:
 
 	void makeAbsolute(void);
 	inline bool isSell(void) const { return ordertype == SELL; }
+	inline bool isHold(void) const { return ordertype == HOLD; }
 
 	~tranche() { };
 

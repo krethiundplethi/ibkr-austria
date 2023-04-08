@@ -36,6 +36,7 @@ std::ostream &operator<<(std::ostream &os, const tranche &t)
 {
 	os << "Tranche ";
 	if (t.isSell()) os << "(S) ";
+	else if (t.isHold()) os << "(H) ";
 	else os << "(B) ";
 
 	os << std::setw(4) << t.getSecurity() << " stk: " << t.getQuanti() << " Price: " << t.getPrice() << " Fee: " << t.getFee();

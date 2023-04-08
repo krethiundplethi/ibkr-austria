@@ -51,11 +51,12 @@ public:
 	ibkr_parser() = delete;
 	ibkr_parser(std::string fname) : fname{fname}, istream(fname)
 	{
-		cbk_stock_trade = cbk_options_trade = cbk_forex_trade = cbk_forex = nullptr;
+		cbk_initial_holding = cbk_stock_trade = cbk_options_trade = cbk_forex_trade = cbk_forex = nullptr;
 	};
 
 	void parse(void);
 
+	void register_callback_on_initial_holding(callback_function cbk) { cbk_initial_holding = cbk; };
 	void register_callback_on_stock_trade(callback_function cbk) { cbk_stock_trade = cbk; };
 	void register_callback_on_forex_trade(callback_function cbk) { cbk_forex_trade = cbk; };
 	void register_callback_on_options_trade(callback_function cbk) { cbk_options_trade = cbk; };
@@ -70,6 +71,7 @@ private:
 	callback_function cbk_options_trade;
 	callback_function cbk_forex_trade;
 	callback_function cbk_forex;
+	callback_function cbk_initial_holding;
 };
 
 } /* namespace ibkr */

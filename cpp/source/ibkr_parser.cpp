@@ -67,20 +67,31 @@ enum col
 {
 	TYPE = 1,
 	SYMBOL = 2,
-	AMOUNT = 3,
-	BASIS = 4,
-	PRICE = 5,
+	CURRENCY = 3,
+	AMOUNT = 4,
+	BASIS = 5,
+	PRICE = 6,
 };
 
 } /* ns holding */
 
+namespace action {
+
+enum col
+{
+	TYPE = 2,
+	CURRENCY = 3,
+	DATE = 5,
+	DESCR = 6,
+	AMOUNT = 7,
+};
+
+} /* ns action */
 
 } /* ns csv */
 
-
-
 template <typename T>
-inline decltype(T::id) match_to_id(string &s, const T *array_of_structs, size_t n)
+inline decltype(T::id) match_to_id(const string &s, const T *array_of_structs, size_t n)
 {
 	decltype(T::id) result = decltype(T::id)::UNKNOWN;
 
@@ -144,9 +155,9 @@ void vectorize_inner(const string &s, vector <string> &result)
 }
 
 
-currency::unit currency_from_vector(vector <string> &v, size_t col)
+currency::unit currency_from_string(const std::string &s)
 {
-	auto id = match_to_id<const currency::unit>(v[col],
+	auto id = match_to_id<const currency::unit>(s,
 			currency::match, sizeof(currency::match)/sizeof(currency::match[0])
 			);
 	return currency::from_symbol(id);
@@ -160,6 +171,7 @@ void ibkr_parser::parse(void)
 	bool isTrade = false;
 	bool isForex = false;
 	bool isHolding = false;
+	bool isAction = false;
 
 	int temp_cnt = 0;
 
@@ -170,10 +182,11 @@ void ibkr_parser::parse(void)
 		isTrade = line.rfind("Trades,Data,Order", 0) == 0;
 		isForex = line.rfind("Forex P/L Details,Data,Forex", 0) == 0;
 		isHolding = line.rfind("Initial Holding", 0) == 0;
+		isAction = line.rfind("Corporate Actions", 0) == 0;
 
 		vector <string> v;
 
-		if (isTrade || isForex || isHolding)
+		if (isTrade || isForex || isHolding || isAction)
 		{
 			vectorize(line, v);
 			/* fixme debug logging
@@ -185,34 +198,54 @@ void ibkr_parser::parse(void)
 
 		if (isHolding)
 		{
-			currency::price price_all = {currency::EUR, stod(v[csv::holding::col::BASIS])};
-			currency::price price_one = {currency::EUR, stod(v[csv::holding::col::PRICE])};
+			currency::unit u = currency::EUR;
+			std::string type {v[csv::holding::col::TYPE]};
+			bool isCash = type.rfind("Cash", 0) == 0;
+
+			std::string symbol = v[csv::holding::col::SYMBOL];
+			//u = currency_from_string(symbol.substr(0, symbol.find(".")));
+			u = currency_from_string(v[csv::holding::col::CURRENCY]);
+
+			currency::price price_one = {u, stod(v[csv::holding::col::PRICE])};
+			currency::price price_all = {u, stod(v[csv::holding::col::BASIS])};
 
 			security sec(v[csv::holding::col::SYMBOL], price_one);
+			sec.setType(isCash ? security::CURRENCY : security::EQUITY);
 
 			double amount = stod(v[csv::holding::col::AMOUNT]);
-
 			auto p_tranche = std::make_unique<tranche>(sec, amount, price_all, currency::price {currency::USD, 0.0});
 			p_tranche->setType(tranche::HOLD);
 
-			std::string s {v[csv::holding::col::TYPE]};
-			if (s.rfind("Cash", 0) == 0)
-			{
-				p_tranche->getSecurity().setType(security::CURRENCY);
-			}
-			else
-			{
-				p_tranche->getSecurity().setType(security::EQUITY);
-			}
-
 			if (cbk_initial_holding) cbk_initial_holding(tm, p_tranche);
+		}
+		else if (isAction &&
+				(v[csv::action::col::TYPE] == "Stocks") &&
+				(v[csv::action::col::DESCR].find("Split") != std::string::npos))
+		{
+			std::stringstream ss2(v[csv::action::col::DATE]);
+			ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+			std::string action = v[csv::action::col::DESCR];
+			double amount = stod(v[csv::action::col::AMOUNT]);
+
+			currency::price price = {currency_from_string(v[csv::action::col::CURRENCY]), 0.0};
+
+			std::string symbol = action.substr(0, action.find("("));
+			security sec(symbol, price);
+
+			auto p_tranche = std::make_unique<tranche>(sec, amount, price, currency::price{price.unit, 0.0});
+			p_tranche->getSecurity().setType(security::EQUITY);
+			p_tranche->setTimeStamp(tm);
+			p_tranche->setType(amount < 0 ? tranche::SELL : tranche::BUY);
+			p_tranche->makeAbsolute();
+
+			if (cbk_stocksplit) cbk_stocksplit(tm, p_tranche);
 		}
 		else if (isTrade)
 		{
 			std::stringstream ss2(v[csv::trades::col::DATE]);
 			ss2 >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
 			currency::price price = {currency::USD, 0.0};
-			price.unit = currency_from_vector(v, csv::trades::col::CURRENCY);
+			price.unit = currency_from_string(v[csv::trades::col::CURRENCY]);
 			price.value = stod(v[csv::trades::col::PRICE]);
 			security sec(v[csv::trades::col::SYMBOL], price);
 
@@ -281,12 +314,12 @@ void ibkr_parser::parse(void)
 			double price_per_share = abs(stod(v[column_earning]) / stod(v[csv::forex::col::QUANTI]));
 
 			currency::price price = {
-				currency_from_vector(v, csv::forex::col::CURRENCY),
+				currency_from_string(v[csv::forex::col::CURRENCY]),
 				price_per_share
 			};
 
 			currency::price fee = {
-				currency_from_vector(v, csv::forex::col::CURRENCY),
+				currency_from_string(v[csv::forex::col::CURRENCY]),
 				0.0
 			};
 

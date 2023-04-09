@@ -24,7 +24,7 @@ namespace pnl
 
 struct inout_data
 {
-	int year = 2021;
+	int year = 1900;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_trades;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex_lut;

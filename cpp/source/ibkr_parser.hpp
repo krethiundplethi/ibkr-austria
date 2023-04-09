@@ -61,6 +61,7 @@ public:
 	void register_callback_on_forex_trade(callback_function cbk) { cbk_forex_trade = cbk; };
 	void register_callback_on_options_trade(callback_function cbk) { cbk_options_trade = cbk; };
 	void register_callback_on_forex(callback_function cbk) { cbk_forex = cbk; };
+	void register_callback_on_stocksplit(callback_function cbk) { cbk_stocksplit = cbk; };
 
 	virtual ~ibkr_parser() {};
 
@@ -72,6 +73,7 @@ private:
 	callback_function cbk_forex_trade;
 	callback_function cbk_forex;
 	callback_function cbk_initial_holding;
+	callback_function cbk_stocksplit;
 };
 
 } /* namespace ibkr */

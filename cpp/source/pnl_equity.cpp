@@ -50,9 +50,14 @@ void equity_calc(
 	{
 		ibkr::tranche &t = *(*it);
 		std::string symbol = t.getSecurity().getName();
+
 		if ((t.getSecurity().getType() != ibkr::security::EQUITY) || (t.getPrice().unit.id != currency.id))
 		{
 			continue;
+		}
+		else if (symbol == "AAPL")
+		{
+			printf("");
 		}
 
 		if (prev_symbol != t.getSecurity().getName())
@@ -80,7 +85,10 @@ void equity_calc(
 		bool finished = false;
 		t.unfill();
 
-		if (t.getSecurity().getPrice().unit == currency::EUR)
+		if ((t.getSecurity().getPrice().unit == currency::EUR) ||
+			(t.getSecurity().getPrice().value < 0.00001) ||
+			(t.getType() == tranche::HOLD)
+		)
 		{
 			eur_paid = t.getPrice();
 			pieces = t.getQuanti();
@@ -120,7 +128,7 @@ void equity_calc(
 		}
 		if (t.getQuanti() != pieces)
 		{
-			printf("****warning: mismatching pieces: %d", pieces);
+			printf("****warning: mismatching pieces: %d\n", pieces);
 		}
 
 
@@ -134,10 +142,16 @@ void equity_calc(
 		balances[symbol] += pieces * (t.isSell() ? -1.00 : 1.00);
 
 		/* Hier wird der gleitendende Durchschnitt mittels old_balance angesetzt.
-		 * Slightly more complicated that thought initially, because being short,
+		 * Slightly more complicated than thought initially, because being short,
 		 * the logic is inverted. Selling updates running average, buying causes PnL.
 		 * */
-		if (!t.isSell())
+
+		if (t.getType() == tranche::HOLD)
+		{
+			avg_rate[symbol] = eur_paid / pieces;
+			balances_in_eur[symbol] += eur_paid;
+		}
+		else if (!t.isSell())
 		{
 			/* whenever I get currency, the current EUR value is used, not the averaged one */
 			avg_rate[symbol] = (avg_rate[symbol] * old_balance + eur_paid) / (old_balance + pieces);
@@ -150,6 +164,11 @@ void equity_calc(
 		else
 		{
 			balances_in_eur[symbol] -= short_frac * eur_paid;
+			if (balances_in_eur[symbol] < 0.0)
+			{
+				printf("****warning: Think this is a bug. Selling from long to short without recalculating avg_rate!\n");
+			}
+
 			if (old_balance != 0.0)
 			{
 				balances_in_eur[symbol] -= long_frac * (pieces * old_balance_eur / old_balance);
@@ -159,7 +178,11 @@ void equity_calc(
 		double guv = 0.0;
 		double ansatz = 0.0;
 
-		if (t.isSell())
+		if (t.getType() == tranche::HOLD)
+		{
+			ansatz = eur_paid;
+		}
+		else if (t.isSell())
 		{
 			ansatz = -short_frac * eur_paid;
 			if (old_balance != 0.0)
@@ -183,7 +206,7 @@ void equity_calc(
 
 		printf("%-6s ", symbol.c_str()); /* symbol */
 		printf("%4d-%02d %02d ",  data.year, tm.tm_mon + 1, tm.tm_mday); /* datum */
-		printf("%-1s ", t.isSell() ? "V" : "K");
+		printf("%-1s ", t.getType() == tranche::HOLD ? "H" : t.isSell() ? "V" : "K");
 		printf("%7.0f %9.3f ", t.getQuanti() * (t.isSell() ? -1.0 : 1.0), t.getSecurity().getPrice().value); /* Menge Kurs */
 		printf("%11.2f %7.0f ", eur_paid, balances[symbol]); /* Preis Bestand */
 

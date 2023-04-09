@@ -20,14 +20,44 @@ using namespace ibkr;
 
 struct pnl::inout_data data;
 
+static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche);
+static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche);
+static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche);
 
-void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+
+static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
 	cout << "HODL " << *p_tranche << endl;
+	const currency::unit &cu = p_tranche->getSecurity().getPrice().unit;
+
+	if (p_tranche->getSecurity().getType() == security::CURRENCY)
+	{
+		if (data.foreign_currencies.find(cu) != data.foreign_currencies.end())
+		{
+			cout << "ERROR! Holdings contains multiple entries of " << p_tranche->getSecurity() << endl;
+		}
+		else
+		{
+			data.foreign_currencies.insert(cu);
+			data.balances[cu] = p_tranche->getQuanti();
+			data.balances_in_eur[cu] = p_tranche->getPrice().value;
+			data.balances_losses[cu] = 0.0;
+			data.balances_profit[cu] = 0.0;
+			data.avg_rate[cu] = p_tranche->getSecurity().getPrice().value;
+		}
+	}
+	else
+	{
+		/* equity holdings from prev year, let's see if we can handle
+		 * it like any other trade - prolly not. */
+		cbk_trade(tm, p_tranche);
+	}
+
 }
 
 
-void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+
+static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
 	char buf[32];
 	// cout << "STONK " << *p_tranche << endl;
@@ -51,7 +81,7 @@ void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 }
 
 
-void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
 	auto ss = stringstream(p_tranche->getSecurity().getName());
 	string token;
@@ -79,6 +109,7 @@ void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	const currency::unit &cu = p_tranche->getPrice().unit;
 	if (data.foreign_currencies.find(cu) == data.foreign_currencies.end())
 	{
+		cout << "Warning: Transaction without cash balance in " << cu << ": " << *p_tranche << endl;
 		data.foreign_currencies.insert(cu);
 		data.balances[cu] = 0.0;
 		data.balances_in_eur[cu] = 0.0;
@@ -112,11 +143,14 @@ int main(int argc, char **argv)
     //CLI::App app{"Tax calc"};
     std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\U6443611_20220103_20221230.csv");
     std::string filename_initial_holdings("C:\\Development\\github\\ibkr-austria\\Bestand_2021-12-31.csv");
+    int tax_year = 2022;
     bool verbose = true;
     //app.add_option("-f,--file", filename, "csv file from IBKR");
     //app.add_option("-v,--verbose", verbose, "be verbose");
 
     //CLI11_PARSE(app, argc, argv);
+
+    data.year = tax_year;
 
 	if (verbose) cout << "Opening file: " << filename_initial_holdings << endl;
 	ibkr_parser parser1(filename_initial_holdings);
@@ -130,6 +164,7 @@ int main(int argc, char **argv)
 	parser.register_callback_on_forex_trade(cbk_trade);
 	parser.register_callback_on_options_trade(cbk_trade);
 	parser.register_callback_on_forex(cbk_forex);
+	parser.register_callback_on_stocksplit(cbk_trade);
 	parser.parse();
 
 	if (verbose)

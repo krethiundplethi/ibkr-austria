@@ -45,7 +45,7 @@ void long_and_short_fraction(double balance, double delta, double &long_frac, do
 	}
 	else
 	{
-		printf("Long/short Warning");
+		printf("Long/short Warning\n");
 		long_frac = 1.0;
 		short_frac = 0.0;
 	}

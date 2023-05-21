@@ -386,7 +386,7 @@ void ibkr_parser::parse(void)
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
 
-				if (tr->getSecurity().getName() == "EUR.JPY")
+				if (tr->getSecurity().getName().find("QQQ") != std::string::npos)
 				{
 					printf("");
 				}

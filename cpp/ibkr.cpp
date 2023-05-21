@@ -194,6 +194,8 @@ int main(int argc, char **argv)
 	double overall_profit = 0.0;
 	double overall_losses = 0.0;
 
+	printf("\n\nFOREX\n\n");
+
 	for (auto const currency : data.foreign_currencies)
 	{
 		pnl::forex_calc(currency, overall_profit, overall_losses, data);
@@ -203,11 +205,20 @@ int main(int argc, char **argv)
 	overall_losses = 0.0;
 
 	data.foreign_currencies.insert(ibkr::currency::EUR);
+
+	printf("\n\nEQUITY\n\n");
+
 	for (auto const currency : data.foreign_currencies)
 	{
-		pnl::equity_calc(currency, overall_profit, overall_losses, data);
+		pnl::equity_calc(ibkr::security::EQUITY, currency, overall_profit, overall_losses, data);
 	}
 
+	printf("\n\nOPTIONS\n\n");
+
+	for (auto const currency : data.foreign_currencies)
+	{
+		pnl::equity_calc(ibkr::security::OPTION, currency, overall_profit, overall_losses, data);
+	}
 
 	return 0;
 }

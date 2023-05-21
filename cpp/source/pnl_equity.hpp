@@ -16,6 +16,7 @@ namespace pnl
 
 
 void equity_calc(
+	const enum ibkr::security::type security_type,
 	const ibkr::currency::unit &currency,
 	double &g_overall_profit,
 	double &g_overall_losses,

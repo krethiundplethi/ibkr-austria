@@ -26,6 +26,7 @@ namespace pnl
  * Does it need to be pretty? nope.
  */
 void equity_calc(
+	const enum ibkr::security::type security_type,
 	const ibkr::currency::unit &currency,
 	double &overall_profit,
 	double &overall_losses,
@@ -35,9 +36,13 @@ void equity_calc(
 	std::string prev_symbol;
 	ibkr::currency::unit prev_unit;
 	std::map<std::string, double> balances;
+	std::map<std::string, double> balances_fees;
 	std::map<std::string, double> balances_losses;
 	std::map<std::string, double> balances_profit;
 	std::map<std::string, double> balances_in_eur;
+	double currency_fees = 0.0;
+	double currency_guv = 0.0;
+	bool currency_found = false;
 
 	std::vector<std::shared_ptr<ibkr::tranche>> tranches;
 	for (auto const &elem: data.map_trades)
@@ -51,18 +56,24 @@ void equity_calc(
 		ibkr::tranche &t = *(*it);
 		std::string symbol = t.getSecurity().getName();
 
-		if ((t.getSecurity().getType() != ibkr::security::EQUITY) || (t.getPrice().unit.id != currency.id))
+		if ((t.getSecurity().getType() != security_type) ||
+			(t.getPrice().unit.id != currency.id))
 		{
 			continue;
 		}
-		else if (symbol == "LAC")
+		else if (symbol.find("QQQ") != std::string::npos)
 		{
 			printf("");
+		}
+		else
+		{
+			currency_found = true;
 		}
 
 		if (prev_symbol != t.getSecurity().getName())
 		{
-			printf("Symbol Datum      1   Menge Kurs(%s)  Preis(EUR) Bestand   Kumm(EUR)    glD(EUR)      Ansatz       GuV      Gewinn     Verlust ", t.getSecurity().getPrice().unit.name);
+			printf("Symbol               ");
+			printf("Datum      1   Menge Kurs(%s)  Preis(EUR) Gebühr Bestand   Kumm(EUR)    glD(EUR)      Ansatz       GuV      Gewinn     Verlust ", t.getSecurity().getPrice().unit.name);
 			printf("  SummGuV  SummGewinn SummVerlust");
 			printf("\n");
 		}
@@ -70,6 +81,7 @@ void equity_calc(
 		if (balances.find(symbol) == balances.end())
 		{
 			balances[symbol] = 0.0;
+			balances_fees[symbol] = 0.0;
 			balances_losses[symbol] = 0.0;
 			balances_profit[symbol] = 0.0;
 		}
@@ -77,6 +89,7 @@ void equity_calc(
 		std::tm tm = t.getTimeStamp();
 
 		double eur_paid = 0.0;
+		double eur_fee = 0.0;
 		double forex_exch = 1.0; /* default for EUR 1:1 */
 		int pieces = 0;
 
@@ -90,6 +103,7 @@ void equity_calc(
 		)
 		{
 			eur_paid = t.getPrice();
+			eur_fee = t.getFee();
 			pieces = t.getQuanti();
 		}
 		else
@@ -109,7 +123,7 @@ void equity_calc(
 					double eur = it->second->getPrice();
 					double stock_paid = it->second->getQuanti() * t.getSecurity().getPrice();
 					double stock_fee = (it->second->getPrice() / it->second->getSecurity().getPrice() - stock_paid) * (it->second->isSell() ? 1.00 : -1.00);
-					double eur_fee = 0.0;
+					double eur_fee_ = 0.0;
 
 					if (t.isSell() && it->second->isSell())
 					{
@@ -118,13 +132,15 @@ void equity_calc(
 
 					if (it->second->isSell()) /* Forex sell = equity buy */
 					{
-						eur_fee = stock_fee * it->second->getPrice() / (stock_paid + stock_fee);
-						eur_paid += eur - eur_fee;
+						eur_fee_ = stock_fee * it->second->getPrice() / (stock_paid + stock_fee);
+						eur_paid += eur - eur_fee_;
+						eur_fee += eur_fee_;
 					}
 					else
 					{
-						eur_fee = stock_fee * it->second->getPrice() / (stock_paid - stock_fee);
-						eur_paid += eur + eur_fee;
+						eur_fee_ = stock_fee * it->second->getPrice() / (stock_paid - stock_fee);
+						eur_paid += eur + eur_fee_;
+						eur_fee += eur_fee_;
 					}
 
 					int fill = it->second->getQuanti();
@@ -212,11 +228,15 @@ void equity_calc(
 		if (guv > 0) balances_profit[symbol] += guv;
 		else balances_losses[symbol] += guv;
 
-		printf("%-6s ", symbol.c_str()); /* symbol */
+		currency_guv += guv;
+		balances_fees[symbol] += eur_fee;
+		currency_fees += eur_fee;
+
+		printf("%-20s ", symbol.c_str()); /* symbol */
 		printf("%4d-%02d %02d ",  data.year, tm.tm_mon + 1, tm.tm_mday); /* datum */
 		printf("%-1s ", t.getType() == tranche::HOLD ? "H" : t.isSell() ? "V" : "K");
 		printf("%7.0f %9.3f ", t.getQuanti() * (t.isSell() ? -1.0 : 1.0), t.getSecurity().getPrice().value); /* Menge Kurs */
-		printf("%11.2f %7.0f ", eur_paid, balances[symbol]); /* Preis Bestand */
+		printf("%11.2f %6.2f %7.0f ", eur_paid, eur_fee, balances[symbol]); /* Preis Gebühr Bestand */
 
 		if (balances_in_eur.find(symbol) == balances_in_eur.end()) balances_in_eur[symbol] = 0.0;
 
@@ -246,8 +266,8 @@ void equity_calc(
 		{
 			overall_losses += balances_losses[prev_symbol];
 			overall_profit += balances_profit[prev_symbol];
-			printf("%-6s ", symbol.c_str());
-			printf("%4d-12 31 = ======= ========= =========== %7.0f ", data.year, balances[symbol] ); /* menge kurs preis */
+			printf("%-20s ", symbol.c_str());
+			printf("%4d-12 31 = ======= ========= =========== %6.2f %7.0f ", data.year, balances_fees[symbol], balances[symbol] ); /* menge kurs preis */
 
 			printf("%11.2f ", balances_in_eur[symbol]); /* Kumm(EUR) */
 			if ((balances[symbol] > 0.0001) || (balances[symbol] < -0.0001))
@@ -259,7 +279,16 @@ void equity_calc(
 			printf("%9.2f %11.2f %11.2f ",
 					balances_profit[symbol] + balances_losses[symbol], balances_profit[symbol], balances_losses[symbol]);
 			printf("%9.2f %11.2f %11.2f\n", overall_profit + overall_losses, overall_profit, overall_losses);
+
 		}
+	}
+
+	if (currency_found)
+	{
+		printf("                     "); /* symbol */
+		printf("%4d-12 31 = ======= == %s == =========== ", data.year, currency.name);
+		printf("%6.2f                                             %9.2f", currency_fees, currency_guv);
+		printf("\n");
 	}
 }
 

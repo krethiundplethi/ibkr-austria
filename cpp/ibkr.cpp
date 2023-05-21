@@ -43,7 +43,6 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 			data.balances_in_eur[cu] = p_tranche->getPrice().value;
 			data.balances_losses[cu] = 0.0;
 			data.balances_profit[cu] = 0.0;
-			data.avg_rate[cu] = p_tranche->getSecurity().getPrice().value;
 		}
 	}
 	else
@@ -121,7 +120,6 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		data.balances_in_eur[cu] = 0.0;
 		data.balances_losses[cu] = 0.0;
 		data.balances_profit[cu] = 0.0;
-		data.avg_rate[cu] = 0.0;
 	}
 
 	int cnt = 0;

@@ -177,7 +177,6 @@ void forex_calc(
 				if (!t.isSell())
 				{
 					/* whenever I get currency, the current EUR value is used, not the averaged one */
-					data.avg_rate[currency] = (data.avg_rate[currency] * old_balance + eur_paid) / (old_balance + stock_paid);
 					data.balances_in_eur[currency] += long_frac * eur_paid;
 					if (old_balance != 0.0)
 					{

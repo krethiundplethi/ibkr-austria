@@ -31,7 +31,6 @@ struct inout_data
 	std::set <ibkr::currency::unit> foreign_currencies;
 	std::map <ibkr::currency::unit, double> balances;
 	std::map <ibkr::currency::unit, double> balances_in_eur;
-	std::map <ibkr::currency::unit, double> avg_rate;
 	std::map <ibkr::currency::unit, double> balances_profit;
 	std::map <ibkr::currency::unit, double> balances_losses;
 };

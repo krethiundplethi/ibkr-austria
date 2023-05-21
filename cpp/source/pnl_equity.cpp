@@ -38,7 +38,6 @@ void equity_calc(
 	std::map<std::string, double> balances_losses;
 	std::map<std::string, double> balances_profit;
 	std::map<std::string, double> balances_in_eur;
-	std::map<std::string, double> avg_rate;
 
 	std::vector<std::shared_ptr<ibkr::tranche>> tranches;
 	for (auto const &elem: data.map_trades)
@@ -70,7 +69,6 @@ void equity_calc(
 
 		if (balances.find(symbol) == balances.end())
 		{
-			avg_rate[symbol] = 0.0;
 			balances[symbol] = 0.0;
 			balances_losses[symbol] = 0.0;
 			balances_profit[symbol] = 0.0;
@@ -164,13 +162,11 @@ void equity_calc(
 
 		if (t.getType() == tranche::HOLD)
 		{
-			avg_rate[symbol] = eur_paid / pieces;
 			balances_in_eur[symbol] += eur_paid;
 		}
 		else if (!t.isSell())
 		{
 			/* whenever I get currency, the current EUR value is used, not the averaged one */
-			avg_rate[symbol] = (avg_rate[symbol] * old_balance + eur_paid) / (old_balance + pieces);
 			balances_in_eur[symbol] += long_frac * eur_paid;
 			if (old_balance != 0.0)
 			{
@@ -180,10 +176,6 @@ void equity_calc(
 		else
 		{
 			balances_in_eur[symbol] -= short_frac * eur_paid;
-			if ((old_balance > 0.0) && (balances[symbol] < 0.0))
-			{
-				printf("****warning: Think this is a bug. Selling from long to short without recalculating avg_rate!\n");
-			}
 
 			if (old_balance != 0.0)
 			{

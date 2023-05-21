@@ -52,6 +52,9 @@ bool tranche_compare(std::shared_ptr<ibkr::tranche> t1, std::shared_ptr<ibkr::tr
 	if (t1->getSecurity().getName().compare(t2->getSecurity().getName()) < 0) return true;
 	if (t1->getSecurity().getName().compare(t2->getSecurity().getName()) > 0) return false;
 
+	if (t1->getSecurity().getPrice().unit.id < t2->getSecurity().getPrice().unit.id) return true;
+	if (t1->getSecurity().getPrice().unit.id > t2->getSecurity().getPrice().unit.id) return false;
+
 	if (ts1.tm_mon < ts2.tm_mon) return true;
 	if (ts1.tm_mon > ts2.tm_mon) return false;
 

@@ -344,16 +344,26 @@ void ibkr_parser::parse(void)
 				if (tokenized.size() > 2)
 				{
 					cash.setName(tokenized[2]);
-					if (tokenized[2].find(".") != string::npos)
+					std::size_t dotpos = tokenized[2].find(".");
+					if (dotpos != string::npos)
 					{
 						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
 						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
 						 */
-						//double eur = abs(stod(tokenized[1]));
-						//fee.value = abs(price.value - eur);
-						// the fee can only be calculated, if one part was EUR.
-						// otherwise it is wrong. e.g. for RUB.USD. In such cases
-						// the fee is to be found in the order!
+						if (tokenized[2].substr(0, dotpos) == "EUR")
+						{
+							// the fee can only be calculated, if one part was EUR.
+							// otherwise it is wrong. e.g. for RUB.USD. In such cases
+							// the fee is to be found in the order!
+							double eur = abs(stod(tokenized[1]));
+							fee.value = abs(price.value - eur);
+							fee.unit = currency::EUR;
+							price.value = eur;
+						}
+						else
+						{
+							std::cout << "WARNING: Parsed Forex transaction without EUR: " << tokenized[2] << std::endl;
+						}
 					}
 					else
 					{
@@ -376,6 +386,10 @@ void ibkr_parser::parse(void)
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
 
+				if (tr->getSecurity().getName() == "EUR.JPY")
+				{
+					printf("");
+				}
 				if (cbk_forex) cbk_forex(tm, tr);
 				//cout << "forex " << *tr << endl;
 				temp_cnt++;

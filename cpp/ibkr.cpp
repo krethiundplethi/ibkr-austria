@@ -50,7 +50,13 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	{
 		/* equity holdings from prev year, let's see if we can handle
 		 * it like any other trade - prolly not. */
-		cbk_trade(tm, p_tranche);
+		/* first workaround: set date to 1.1. of taxyear */
+		std::tm tm_patched = tm;
+		tm_patched.tm_year = data.year - 1900;
+		tm_patched.tm_mon = tm_patched.tm_mday = 1;
+		tm_patched.tm_hour = tm_patched.tm_min = tm_patched.tm_sec = 0;
+
+		cbk_trade(tm_patched, p_tranche);
 	}
 
 }

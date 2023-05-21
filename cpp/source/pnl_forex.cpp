@@ -4,6 +4,8 @@
 #include "tranche.hpp"
 #include "currency.hpp"
 
+#include <math.h>
+
 
 namespace {
 
@@ -71,7 +73,7 @@ void forex_calc(
 
 			if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 			{
-				if (t.getSecurity().getName() == "NIC")
+				if (t.getSecurity().getName() == "VMT")
 				{
 					printf("");
 				}
@@ -127,19 +129,20 @@ void forex_calc(
 
 					/* acshually we are only doing this to get the fee on the transaktion,
 					 * thats it. All other information is already in the forex table entry. */
-					stock_paid = t.getQuanti() * order.getSecurity().getPrice();
+
+					stock_paid = t.getQuanti() * order.getSecurity().getPrice(); /* what the stock paid/cost, excluding fees */
 					stock_fee = (t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
-					//stock_paid = t.isSell() ? stock_paid - stock_fee : stock_paid + stock_fee;
 
 					/* booking in eur is a bit tricky here because fees need to be extracted. */
-					eur_fee = stock_fee * eur_paid / (stock_paid + stock_fee);
 					if (t.isSell())
 					{
 						/* buying equity ... fee is already considered */
+						eur_fee = stock_fee * eur_paid / (stock_paid + stock_fee);
 						eur_paid -= eur_fee;
 					}
 					else
 					{
+						eur_fee = stock_fee * eur_paid / (stock_paid - stock_fee);
 						eur_paid += eur_fee;
 					}
 				}
@@ -149,10 +152,13 @@ void forex_calc(
 
 					/* Für devisen gilt Menge = Wert */
 					stock_paid = t.getQuanti();
+
+					/* Why?
 					if (!t.isSell())
 					{
 						eur_paid -= order.getFee();
 					}
+					*/
 				}
 
 

@@ -33,6 +33,7 @@ void equity_calc(
 )
 {
 	std::string prev_symbol;
+	ibkr::currency::unit prev_unit;
 	std::map<std::string, double> balances;
 	std::map<std::string, double> balances_losses;
 	std::map<std::string, double> balances_profit;
@@ -55,7 +56,7 @@ void equity_calc(
 		{
 			continue;
 		}
-		else if (symbol == "AAPL")
+		else if (symbol == "LAC")
 		{
 			printf("");
 		}
@@ -110,9 +111,24 @@ void equity_calc(
 					double eur = it->second->getPrice();
 					double stock_paid = it->second->getQuanti() * t.getSecurity().getPrice();
 					double stock_fee = (it->second->getPrice() / it->second->getSecurity().getPrice() - stock_paid) * (it->second->isSell() ? 1.00 : -1.00);
-					double eur_fee = stock_fee * it->second->getPrice() / (stock_paid + stock_fee);
+					double eur_fee = 0.0;
 
-					eur_paid += eur - eur_fee * (it->second->isSell() ? 1.00 : -1.00);
+					if (t.isSell() && it->second->isSell())
+					{
+						printf("ERROR! Equity sell but not a Forex buy ??");
+					}
+
+					if (it->second->isSell()) /* Forex sell = equity buy */
+					{
+						eur_fee = stock_fee * it->second->getPrice() / (stock_paid + stock_fee);
+						eur_paid += eur - eur_fee;
+					}
+					else
+					{
+						eur_fee = stock_fee * it->second->getPrice() / (stock_paid - stock_fee);
+						eur_paid += eur + eur_fee;
+					}
+
 					int fill = it->second->getQuanti();
 					t.fill(fill);
 					it->second->fill(fill);
@@ -164,7 +180,7 @@ void equity_calc(
 		else
 		{
 			balances_in_eur[symbol] -= short_frac * eur_paid;
-			if (balances_in_eur[symbol] < 0.0)
+			if ((old_balance > 0.0) && (balances[symbol] < 0.0))
 			{
 				printf("****warning: Think this is a bug. Selling from long to short without recalculating avg_rate!\n");
 			}
@@ -225,11 +241,16 @@ void equity_calc(
 		fflush(stdout);
 
 		prev_symbol = t.getSecurity().getName();
+		prev_unit = t.getSecurity().getPrice().unit;
 
 		/* look ahead */
 		std::vector<std::shared_ptr<ibkr::tranche>>::iterator next = it;
 		++next;
-		if ((next == tranches.end()) || ((*next)->getSecurity().getName() != prev_symbol))
+		if (
+			(next == tranches.end()) || \
+			/* e.g. tricky. Some equity names (esp. CAD) trade in other currencies as well */
+			(((*next)->getSecurity().getName() != prev_symbol) || ((*next)->getSecurity().getPrice().unit != prev_unit)) \
+		)
 		{
 			overall_losses += balances_losses[prev_symbol];
 			overall_profit += balances_profit[prev_symbol];

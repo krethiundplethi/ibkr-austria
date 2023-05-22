@@ -52,6 +52,9 @@ public:
 	inline bool isSell(void) const { return ordertype == SELL; }
 	inline bool isHold(void) const { return ordertype == HOLD; }
 
+	inline void setQuanti(double d) { quanti = d; }
+	inline double getQuanti(void) { return quanti; }
+
 	~tranche() { };
 
 private:

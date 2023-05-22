@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <cmath>
 #include <regex>
+#include <numeric>
 
 
 namespace ibkr {
@@ -281,7 +282,11 @@ void ibkr_parser::parse(void)
 
 				case trade::type::OPTIONS:
 				{
+					char normalized[32];
+					normalized_option_key(p_tranche->getSecurity().getName(), normalized, 31);
+					p_tranche->getSecurity().setName(normalized);
 					p_tranche->getSecurity().setType(security::OPTION);
+					p_tranche->setQuanti(p_tranche->getQuanti() * 100);
 					if (cbk_options_trade)
 					{
 						cbk_options_trade(tm, p_tranche);
@@ -343,7 +348,14 @@ void ibkr_parser::parse(void)
 
 				if (tokenized.size() > 2)
 				{
-					cash.setName(tokenized[2]);
+					if (tokenized.size() == 3)
+					{
+						cash.setName(tokenized[2]);
+					}
+					else
+					{
+						cash.setName(tokenized[2] + std::accumulate(tokenized.begin() + 3, tokenized.end(), std::string(" ")));
+					}
 					std::size_t dotpos = tokenized[2].find(".");
 					if (dotpos != string::npos)
 					{
@@ -370,7 +382,10 @@ void ibkr_parser::parse(void)
 						if (tokenized[0].find("Option") != string::npos)
 						{
 							cash.setType(security::OPTION);
-							quanti = stod(tokenized[1]); /* amount already set for FX */
+							quanti = stod(tokenized[1]) * 100; /* amount already set for FX */
+							char normalized[32];
+							normalized_option_key(cash.getName(), normalized, 31);
+							cash.setName(normalized);
 						}
 						else
 						{

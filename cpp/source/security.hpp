@@ -47,6 +47,7 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &, const security &);
+bool normalized_option_key(std::string const &src, char *dst, size_t len);
 
 } /* namespace ibkr */
 

@@ -64,15 +64,13 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
-	char buf[32];
+	char buf[48];
+	char ckey[32];
 	// cout << "STONK " << *p_tranche << endl;
 	//auto buf = std::make_unique<char[]>(32); /*only 17, better safe than sorry YYYYMMDDHHMMSSxxx*/
 
 	/* man, c++ can be shitty. doing this in a safe way is 15 lines of code. so'll do it unsafe. */
-	snprintf(buf, 31, "%04u%02u%s",
-			1900 + tm.tm_year, 1 + tm.tm_mon, //tm.tm_mday,
-			/*tm.tm_hour, tm.tm_min, tm.tm_sec,*/
-			p_tranche->getSecurity().getName().c_str());
+	snprintf(buf, 47, "%04u%02u%s", 1900 + tm.tm_year, 1 + tm.tm_mon, p_tranche->getSecurity().getName().c_str());
 
 	int cnt = 0;
 	auto key = std::string(buf) + "-" + std::to_string(cnt);
@@ -91,6 +89,7 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	auto ss = stringstream(p_tranche->getSecurity().getName());
 	string token;
 	vector <std::string> tokenized;
+	char ckey[32];
 
 	tokenized.emplace_back("");
 	while (getline(ss, token, ' '))
@@ -100,16 +99,14 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 	/* key for forex */
 	char buf[32];
+
 	snprintf(buf, 31, "%04u%02u%02u%02u%02u%02u%s",
 			1900 + tm.tm_year, 1 + tm.tm_mon,
 			tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
 			tokenized.back().c_str());
 
 	char buf2[32];
-	snprintf(buf2, 31, "%04u%02u%s",
-			1900 + tm.tm_year, 1 + tm.tm_mon,
-			//tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, /* fixme: only works for forex, not equity --> find better datastructure */
-			tokenized.back().c_str());
+	snprintf(buf2, 31, "%04u%02u%s", 1900 + tm.tm_year, 1 + tm.tm_mon, tokenized.back().c_str());
 
 	const currency::unit &cu = p_tranche->getPrice().unit;
 	if (data.foreign_currencies.find(cu) == data.foreign_currencies.end())

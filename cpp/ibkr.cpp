@@ -212,6 +212,9 @@ int main(int argc, char **argv)
 
 	printf("\n\nOPTIONS\n\n");
 
+	overall_profit = 0.0;
+	overall_losses = 0.0;
+
 	for (auto const currency : data.foreign_currencies)
 	{
 		pnl::equity_calc(ibkr::security::OPTION, currency, overall_profit, overall_losses, data);

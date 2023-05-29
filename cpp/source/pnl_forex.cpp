@@ -12,7 +12,7 @@ namespace {
 void print_fee(int year, int mon, int day, double fx, double fx_bal, double eur, double eur_bal)
 {
 	/*       2022-07 ; Day   ; Symbol  ; K/V/WP ; */
-	printf("%4d-%02d %02d FEE     F      ",  year, mon, day);
+	printf("%4d-%02d %02d FEE                  F      ",  year, mon, day);
 	/*      USD     ; Bestand ; ; Soll EUR ; Haben EUR ; ; EUR gl.D.s. ;   Kurs    ; ; Ansatz EUR ; GuV ; Gebühren*/
 	printf("%11.02f %11.02f %10.02f            %11.02f %10.06f ", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
 }
@@ -62,7 +62,7 @@ void forex_calc(
 {
 	for (int month = 0; month < 12; ++month)
 	{
-		printf("%4d-%02d D  Symbol  K/V/WP %11s "
+		printf("%4d-%02d D  Symbol               K/V/WP %11s "
 			   "    Bestand  Soll(EUR) Haben(EUR)    EUR(glD) "
 			   "      Kurs Basis(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)\n", data.year, month + 1, currency.name);
 
@@ -218,7 +218,7 @@ void forex_calc(
 				else data.balances_losses[currency] += guv;
 
 				printf("%4d-%02d %02d ",  data.year, month+1, tm.tm_mday);
-				printf("%-7s ", t.getSecurity().getName().c_str());
+				printf("%-20s ", t.getSecurity().getName().c_str());
 				printf("%-6s ", transaction_code(t));
 
 				printf("%11.02f ", stock_paid * (t.isSell() ? -1.00 : 1.00)); /* Fremdw  */
@@ -265,7 +265,7 @@ void forex_calc(
 
 	overall_losses += data.balances_losses[currency];
 	overall_profit += data.balances_profit[currency];
-	printf("======= == ======= ====== =========== ");
+	printf("======= == ==================== ====== =========== ");
 	printf("%11s ", currency.name); 					/* Bestand */
 	printf("========== ========== =========== ");
 	printf("=========== "); 				/* Bestand EUR */

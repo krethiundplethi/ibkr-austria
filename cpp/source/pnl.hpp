@@ -36,7 +36,7 @@ struct inout_data
 };
 
 
-std::string construct_key(std::tm const &tm, char const *security_name, int cnt);
+std::string construct_key(std::tm const &tm, char const *security_name, char const *currency, int cnt);
 void long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac);
 
 

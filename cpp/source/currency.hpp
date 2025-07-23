@@ -28,6 +28,7 @@ enum class symbol {
 	SGD,
 	SEK,
 	JPY,
+	NOK,
 	UNKNOWN
 };
 
@@ -73,9 +74,10 @@ MAKE_CURRENCY_STRUCT(CHF);
 MAKE_CURRENCY_STRUCT(SGD);
 MAKE_CURRENCY_STRUCT(SEK);
 MAKE_CURRENCY_STRUCT(JPY);
+MAKE_CURRENCY_STRUCT(NOK);
 MAKE_CURRENCY_STRUCT(UNKNOWN);
 
-constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, GBP, CHF, SGD, SEK, JPY, UNKNOWN };
+constexpr struct unit match[] = { EUR, USD, AUD, CAD, RUB, GBP, CHF, SGD, SEK, JPY, NOK, UNKNOWN };
 
 }
 } /* namespace ibkr */

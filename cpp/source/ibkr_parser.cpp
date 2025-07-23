@@ -202,6 +202,7 @@ void ibkr_parser::parse(void)
 			currency::unit u = currency::EUR;
 			std::string type {v[csv::holding::col::TYPE]};
 			bool isCash = type.rfind("Cash", 0) == 0;
+			bool isOption = type.rfind("Option", 0) == 0;
 
 			std::string symbol = v[csv::holding::col::SYMBOL];
 			//u = currency_from_string(symbol.substr(0, symbol.find(".")));
@@ -211,7 +212,7 @@ void ibkr_parser::parse(void)
 			currency::price price_all = {u, stod(v[csv::holding::col::BASIS])};
 
 			security sec(v[csv::holding::col::SYMBOL], price_one);
-			sec.setType(isCash ? security::CURRENCY : security::EQUITY);
+			sec.setType(isCash ? security::CURRENCY : isOption ? security::OPTION : security::EQUITY);
 
 			double amount = stod(v[csv::holding::col::AMOUNT]);
 			auto p_tranche = std::make_unique<tranche>(sec, amount, price_all, currency::price {currency::USD, 0.0});
@@ -293,9 +294,19 @@ void ibkr_parser::parse(void)
 					}
 				} break;
 
+				case trade::type::FUTURES:
+				{
+					p_tranche->getSecurity().setType(security::FUTURE);
+					if (cbk_stock_trade)
+					{
+						cbk_stock_trade(tm, p_tranche);
+					}
+					//cout << "CASH " << *tr << endl;
+				} break;
+
 				default:
 				{
-					cout << "NAN!" << endl;
+					cout << "unknown trade::type!" << endl;
 				} break;
 			}
 		}
@@ -333,7 +344,13 @@ void ibkr_parser::parse(void)
 
 			price.value = sign_earning * stod(v[column_earning]);
 
-			if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
+			if ((v[csv::forex::col::CLASS].find(" margin") != std::string::npos) ||
+			    (v[csv::forex::col::CLASS].find(" Interest ") != std::string::npos)
+			)
+			{
+				/* tbd */
+			}
+			else if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
 				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */
 			{
 				auto ss = stringstream(v[csv::forex::col::CLASS]);
@@ -356,9 +373,14 @@ void ibkr_parser::parse(void)
 					{
 						cash.setName(tokenized[2] + std::accumulate(tokenized.begin() + 3, tokenized.end(), std::string(" ")));
 					}
-					std::size_t dotpos = tokenized[2].find(".");
-					if (dotpos != string::npos)
+					if (tokenized[0].find("Forex") != string::npos)
 					{
+						std::size_t dotpos = tokenized[2].find(".");
+						if (dotpos == string::npos)
+						{
+							throw std::runtime_error("ERROR: Cannot forex parse.");
+						}
+
 						/* e.g. Devisen    Kauf -10000 EUR.USD USD:11941 EUR:10001,67484
 						 * e.g. Devisen Verkauf   1950 EUR.USD USD:-2317 EUR:1948,3112
 						 */
@@ -377,21 +399,23 @@ void ibkr_parser::parse(void)
 							std::cout << "WARNING: Parsed Forex transaction without EUR: " << tokenized[2] << std::endl;
 						}
 					}
+					else if (tokenized[0].find("Option") != string::npos)
+					{
+						cash.setType(security::OPTION);
+						quanti = stod(tokenized[1]) * 100; /* amount already set for FX */
+						char normalized[32];
+						normalized_option_key(cash.getName(), normalized, 31);
+						cash.setName(normalized);
+					}
+					else if (tokenized[0].find("Future") != string::npos)
+					{
+						cash.setType(security::FUTURE);
+						quanti = stod(tokenized[1]); /* amount already set for FX */
+					}
 					else
 					{
-						if (tokenized[0].find("Option") != string::npos)
-						{
-							cash.setType(security::OPTION);
-							quanti = stod(tokenized[1]) * 100; /* amount already set for FX */
-							char normalized[32];
-							normalized_option_key(cash.getName(), normalized, 31);
-							cash.setName(normalized);
-						}
-						else
-						{
-							cash.setType(security::EQUITY);
-							quanti = stod(tokenized[1]); /* amount already set for FX */
-						}
+						cash.setType(security::EQUITY);
+						quanti = stod(tokenized[1]); /* amount already set for FX */
 					}
 				}
 
@@ -401,7 +425,7 @@ void ibkr_parser::parse(void)
 				else tr->setType(tranche::SELL);
 				tr->makeAbsolute();
 
-				if (tr->getSecurity().getName().find("QQQ") != std::string::npos)
+				if (tr->getSecurity().getName().find("9028.T") != std::string::npos)
 				{
 					printf("");
 				}
@@ -423,11 +447,12 @@ void ibkr_parser::parse(void)
 		}
 		else
 		{
+			// cout << "Cannot parse: " + line << endl;
 			/* cannot parse */
 		}
 	} /* while getline */
 
-	//printf("ibkr_parser summary: %d\n", temp_cnt);
+	printf("ibkr_parser summary: %d\n", temp_cnt);
 } /* parse */
 
 

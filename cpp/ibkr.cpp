@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ibkr;
 
-struct pnl::inout_data data;
+struct pnl::inout_data book;
 
 static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche);
 static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche);
@@ -32,17 +32,17 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 	if (p_tranche->getSecurity().getType() == security::CURRENCY)
 	{
-		if (data.foreign_currencies.find(cu) != data.foreign_currencies.end())
+		if (book.foreign_currencies.find(cu) != book.foreign_currencies.end())
 		{
 			cout << "ERROR! Holdings contains multiple entries of " << p_tranche->getSecurity() << endl;
 		}
 		else
 		{
-			data.foreign_currencies.insert(cu);
-			data.balances[cu] = p_tranche->getQuanti();
-			data.balances_in_eur[cu] = p_tranche->getPrice().value;
-			data.balances_losses[cu] = 0.0;
-			data.balances_profit[cu] = 0.0;
+			book.foreign_currencies.insert(cu);
+			book.balances[cu] = p_tranche->getQuanti();
+			book.balances_in_eur[cu] = p_tranche->getPrice().value;
+			book.balances_losses[cu] = 0.0;
+			book.balances_profit[cu] = 0.0;
 		}
 	}
 	else
@@ -51,7 +51,7 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		 * it like any other trade - prolly not. */
 		/* first workaround: set date to 1.1. of taxyear */
 		std::tm tm_patched = tm;
-		tm_patched.tm_year = data.year - 1900;
+		tm_patched.tm_year = book.year - 1900;
 		tm_patched.tm_mon = tm_patched.tm_mday = 1;
 		tm_patched.tm_hour = tm_patched.tm_min = tm_patched.tm_sec = 0;
 
@@ -74,12 +74,12 @@ static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 	int cnt = 0;
 	auto key = std::string(buf) + "-" + std::to_string(cnt);
-	while (data.map_trades.find(key) != data.map_trades.end())
+	while (book.map_trades.find(key) != book.map_trades.end())
 	{
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
 
-	data.map_trades[key] = std::move(p_tranche);
+	book.map_trades[key] = std::move(p_tranche);
 
 }
 
@@ -106,34 +106,34 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 			tokenized.back().c_str());
 
 	char buf2[32];
-	snprintf(buf2, 31, "%04u%02u%s", 1900 + tm.tm_year, 1 + tm.tm_mon, tokenized.back().c_str());
+	snprintf(buf2, 31, "%04u%02u%s-%s", 1900 + tm.tm_year, 1 + tm.tm_mon, tokenized.back().c_str(), p_tranche->getPrice().unit.name);
 
 	const currency::unit &cu = p_tranche->getPrice().unit;
-	if (data.foreign_currencies.find(cu) == data.foreign_currencies.end())
+	if (book.foreign_currencies.find(cu) == book.foreign_currencies.end())
 	{
 		cout << "Warning: Transaction without cash balance in " << cu << ": " << *p_tranche << endl;
-		data.foreign_currencies.insert(cu);
-		data.balances[cu] = 0.0;
-		data.balances_in_eur[cu] = 0.0;
-		data.balances_losses[cu] = 0.0;
-		data.balances_profit[cu] = 0.0;
+		book.foreign_currencies.insert(cu);
+		book.balances[cu] = 0.0;
+		book.balances_in_eur[cu] = 0.0;
+		book.balances_losses[cu] = 0.0;
+		book.balances_profit[cu] = 0.0;
 	}
 
 	int cnt = 0;
 	auto key = std::string(buf) + "-" + std::to_string(cnt);
-	while (data.map_forex.find(key) != data.map_forex.end())
+	while (book.map_forex.find(key) != book.map_forex.end())
 	{
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
-	data.map_forex[key] = std::move(p_tranche);
+	book.map_forex[key] = std::move(p_tranche);
 
 	cnt = 0;
 	auto key2 = std::string(buf2) + "-" + std::to_string(cnt);
-	while (data.map_forex_lut.find(key2) != data.map_forex_lut.end())
+	while (book.map_forex_lut.find(key2) != book.map_forex_lut.end())
 	{
 		key2 = std::string(buf2) + "-" + std::to_string(++cnt);
 	}
-	data.map_forex_lut[key2] = data.map_forex[key];
+	book.map_forex_lut[key2] = book.map_forex[key];
 }
 
 
@@ -141,17 +141,24 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 
 int main(int argc, char **argv)
 {
-    //CLI::App app{"Tax calc"};
-    std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\U6443611_20220103_20221230.csv");
-    std::string filename_initial_holdings("C:\\Development\\github\\ibkr-austria\\Bestand_2021-12-31.csv");
-    int tax_year = 2022;
-    bool verbose = true;
-    //app.add_option("-f,--file", filename, "csv file from IBKR");
-    //app.add_option("-v,--verbose", verbose, "be verbose");
+	//CLI::App app{"Tax calc"};
+	/* this was 2022 */
+	//std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\U6443611_20220103_20221230.csv");
+	//std::string filename_initial_holdings("C:\\Development\\github\\ibkr-austria\\Bestand_2021-12-31.csv");
+	//int tax_year = 2022;
 
-    //CLI11_PARSE(app, argc, argv);
+	/* this is 2023 */
+	std::string filename_transactions("/mnt/c/Development/ibkr-austria/U6443611_20230102_20231229.csv");
+	std::string filename_initial_holdings("/mnt/c/Development/ibkr-austria/Bestand_2022-12-31.csv");	
+	int tax_year = 2023;
 
-    data.year = tax_year;
+	bool verbose = true;
+	//app.add_option("-f,--file", filename, "csv file from IBKR");
+	//app.add_option("-v,--verbose", verbose, "be verbose");
+
+	//CLI11_PARSE(app, argc, argv);
+
+	book.year = tax_year;
 
 	if (verbose) cout << "Opening file: " << filename_initial_holdings << endl;
 	ibkr_parser parser1(filename_initial_holdings);
@@ -170,17 +177,17 @@ int main(int argc, char **argv)
 
 	if (verbose)
 	{
-		for (auto const &elem: data.foreign_currencies)
+		for (auto const &elem: book.foreign_currencies)
 		{
 			cout << elem << endl;
 		}
 
-		for (auto const &elem: data.map_trades)
+		for (auto const &elem: book.map_trades)
 		{
 			cout << elem.first << ": " << *elem.second << endl;
 		}
 
-		for (auto const &elem: data.map_forex)
+		for (auto const &elem: book.map_forex)
 		{
 			cout << elem.first << "> " << *elem.second << endl;
 		}
@@ -193,21 +200,21 @@ int main(int argc, char **argv)
 
 	printf("\n\nFOREX\n\n");
 
-	for (auto const currency : data.foreign_currencies)
+	for (auto const currency : book.foreign_currencies)
 	{
-		pnl::forex_calc(currency, overall_profit, overall_losses, data);
+		pnl::forex_calc(currency, overall_profit, overall_losses, book);
 	}
 
 	overall_profit = 0.0;
 	overall_losses = 0.0;
 
-	data.foreign_currencies.insert(ibkr::currency::EUR);
+	book.foreign_currencies.insert(ibkr::currency::EUR);
 
 	printf("\n\nEQUITY\n\n");
 
-	for (auto const currency : data.foreign_currencies)
+	for (auto const currency : book.foreign_currencies)
 	{
-		pnl::equity_calc(ibkr::security::EQUITY, currency, overall_profit, overall_losses, data);
+		pnl::equity_calc(ibkr::security::EQUITY, currency, overall_profit, overall_losses, book);
 	}
 
 	printf("\n\nOPTIONS\n\n");
@@ -215,9 +222,19 @@ int main(int argc, char **argv)
 	overall_profit = 0.0;
 	overall_losses = 0.0;
 
-	for (auto const currency : data.foreign_currencies)
+	for (auto const currency : book.foreign_currencies)
 	{
-		pnl::equity_calc(ibkr::security::OPTION, currency, overall_profit, overall_losses, data);
+		pnl::equity_calc(ibkr::security::OPTION, currency, overall_profit, overall_losses, book);
+	}
+
+	printf("\n\nFUTURES\n\n");
+
+	overall_profit = 0.0;
+	overall_losses = 0.0;
+
+	for (auto const currency : book.foreign_currencies)
+	{
+		pnl::equity_calc(ibkr::security::FUTURE, currency, overall_profit, overall_losses, book);
 	}
 
 	return 0;

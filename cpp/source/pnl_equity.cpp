@@ -5,6 +5,7 @@
 #include "tranche.hpp"
 #include "currency.hpp"
 
+#include <cmath> 
 #include <ctime>
 #include <string>
 #include <set>
@@ -61,7 +62,7 @@ void equity_calc(
 		{
 			continue;
 		}
-		else if (symbol.find("QQQ") != std::string::npos)
+		else if (symbol.find("9028.T") != std::string::npos)
 		{
 			printf("");
 		}
@@ -109,12 +110,13 @@ void equity_calc(
 		else
 		{
 			std::string key;
-			while (cnt <= 99)
+			while ((t.unfilled() > 0.01) && (cnt <= 99))
 			{
-				key = construct_key(tm, symbol.c_str(), cnt);
+				key = construct_key(tm, symbol.c_str(), currency.name, cnt);
 				auto it = data.map_forex_lut.find(key);
 				if (it == data.map_forex_lut.end())
 				{
+					printf("****warning: key %s not found\n", key.c_str());
 					break;
 				}
 				else if ((it->second->unfilled() >= 0.01) && (t.unfilled() >= 0.01))
@@ -125,9 +127,9 @@ void equity_calc(
 					double stock_fee = (it->second->getPrice() / it->second->getSecurity().getPrice() - stock_paid) * (it->second->isSell() ? 1.00 : -1.00);
 					double eur_fee_ = 0.0;
 
-					if (t.isSell() && it->second->isSell())
+					if (t.isSell() == it->second->isSell())
 					{
-						printf("ERROR! Equity sell but not a Forex buy ??");
+						printf("ERROR! Inconsistent Equity/Forex buy/sell");
 					}
 
 					if (it->second->isSell()) /* Forex sell = equity buy */
@@ -148,17 +150,13 @@ void equity_calc(
 					it->second->fill(fill);
 					pieces += fill;
 				}
-				else if (t.unfilled() <= 0.01)
-				{
-					break;
-				}
 				cnt++;
 			}
 
 		}
-		if (t.getQuanti() != pieces)
+		if (std::abs(t.getQuanti() - (double) pieces) > 0.000000001)
 		{
-			printf("****warning: mismatching pieces: %d\n", pieces);
+			printf("****warning: mismatching pieces: %d from tranche: %f\n", pieces, t.getQuanti());
 		}
 
 

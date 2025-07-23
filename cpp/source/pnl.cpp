@@ -16,13 +16,13 @@ namespace ibkr
 namespace pnl
 {
 
-std::string construct_key(std::tm const &tm, const char *security_name, int cnt)
+std::string construct_key(std::tm const &tm, const char *security_name, const char *currency, int cnt)
 {
 	char buf[32];
 
 	/* man, c++ can be shitty. doing this in a safe way is 15 lines of code. so'll do it unsafe. */
-	snprintf(buf, 31, "%04u%02u%s",
-			1900 + tm.tm_year, 1 + tm.tm_mon, security_name);
+	snprintf(buf, 31, "%04u%02u%s-%s",
+			1900 + tm.tm_year, 1 + tm.tm_mon, security_name, currency);
 
 	return std::string(buf) + "-" + std::to_string(cnt);
 }

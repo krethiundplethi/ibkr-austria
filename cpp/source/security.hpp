@@ -23,6 +23,7 @@ public:
 		EQUITY,
 		CURRENCY,
 		OPTION,
+		FUTURE,
 	};
 
 	security() = delete;

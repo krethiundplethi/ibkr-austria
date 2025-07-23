@@ -25,6 +25,7 @@ enum class type {
 	STOCKS,
 	FOREX,
 	OPTIONS,
+	FUTURES,
 	UNKNOWN
 };
 
@@ -39,6 +40,7 @@ constexpr unit match[] =
 	{ trade::type::STOCKS, "Stocks" },
 	{ trade::type::FOREX, "Forex" },
 	{ trade::type::OPTIONS, "Equity and Index Options" },
+	{ trade::type::FUTURES, "Futures" },
 };
 
 }
@@ -52,6 +54,10 @@ public:
 	ibkr_parser(std::string fname) : fname{fname}, istream(fname)
 	{
 		cbk_initial_holding = cbk_stock_trade = cbk_options_trade = cbk_forex_trade = cbk_forex = nullptr;
+		if (!istream.is_open())
+		{
+			throw std::runtime_error("Failed to open: " + fname);
+		}
 	};
 
 	void parse(void);

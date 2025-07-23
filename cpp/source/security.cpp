@@ -55,16 +55,16 @@ bool normalized_option_key(std::string const &src_in, char *dst, size_t len)
 
 	if (foundpc == (src.length() - 1)) /*assume QQQ 19AUG22 312.5 P*/
 	{
-		char *p = strchr(src.c_str(), ' ');
+		char *p = (char *) strchr(src.c_str(), ' ');
 		if (p)
 		{
 			*p = '\0';
 			strncpy(symbol, src.c_str(), 7);
-			ret = sscanf(p + 1, "%2u%3s%2u %u.%u %c", &d, &mon, &yy, &val, &frac, &p_or_c);
+			ret = sscanf(p + 1, "%2u%3s%2u %u.%u %c", &d, (char*) &mon, &yy, &val, &frac, &p_or_c);
 			if (ret == 4) /* no dot, no fraction... try again */
 			{
 				frac = 0;
-				ret = sscanf(p + 1, "%2u%3s%2u %u %c", &d, &mon, &yy, &val, &p_or_c);
+				ret = sscanf(p + 1, "%2u%3s%2u %u %c", &d, (char *) &mon, &yy, &val, &p_or_c);
 				ret++; /* pretend its six... for the if afterwards */
 			}
 			const auto iter(months.find(mon));

@@ -8,6 +8,7 @@
 #ifndef SOURCE_PNL_HPP_
 #define SOURCE_PNL_HPP_
 
+#include "rate_parser.hpp"
 #include "tranche.hpp"
 #include "currency.hpp"
 #include <map>
@@ -25,6 +26,7 @@ namespace pnl
 struct inout_data
 {
 	int year = 1900;
+	RateParser rates;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_trades;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex;
 	std::map <std::string, std::shared_ptr<ibkr::tranche>> map_forex_lut;

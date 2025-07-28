@@ -13,6 +13,7 @@
 #include "security.hpp"
 #include "currency.hpp"
 
+#include <asm-generic/errno.h>
 #include <iostream>
 #include <ctime>
 #include <memory>
@@ -35,6 +36,7 @@ public:
 	tranche(const security &security, double quanti, const currency::price price, const currency::price fee, bool sell = false);
 
 	inline void setType(enum e_ordertype ot) {ordertype = ot; }
+	inline void setEcbRate(double rate) { ecb_rate = rate; }
 	inline security &getSecurity() { return sec; }
 	inline const security &getSecurity() const { return sec; }
 	inline const currency::price &getFee() const { return fee; }
@@ -42,6 +44,7 @@ public:
 	inline const enum e_ordertype &getType() const { return ordertype; }
 	inline const double getQuanti() const { return quanti; }
 	inline const double unfilled() const { return quanti - filled; }
+	inline const double getEcbRate() const { return ecb_rate; }
 	inline void fill(double fill) { filled += fill; }
 	inline void unfill(void) { filled = 0.0; }
 
@@ -64,6 +67,7 @@ private:
 	std::tm timestamp;
 	currency::price price;
 	currency::price fee;
+	double ecb_rate;
 	enum e_ordertype ordertype;
 };
 

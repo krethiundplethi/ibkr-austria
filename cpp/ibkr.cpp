@@ -4,11 +4,13 @@
 #include "tranche.hpp"
 #include "ledger.hpp"
 #include "ibkr_parser.hpp"
+#include "rate_parser.hpp"
 
 #include "CLI11.hpp"
 
 #include <iostream>
 #include <set>
+#include <time.h>
 
 #include "pnl.hpp"
 #include "pnl_forex.hpp"
@@ -61,6 +63,25 @@ static void cbk_holdings(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 }
 
 
+double find_rate(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
+{
+	double rate = book.rates.get(p_tranche->getPrice().unit.name, tm);
+	std::tm new_tm = tm;
+	new_tm.tm_mday--; /* if holiday, check day before */
+	
+	for (int i = 0; (i < 5) && (rate < 0.0); i++)
+	{
+		mktime(&new_tm);
+		rate = book.rates.get(p_tranche->getPrice().unit.name, new_tm);
+		new_tm.tm_mday++;
+	}
+	if (rate < 0.0)
+	{
+		throw std::runtime_error("ERROR: Cannot find rate.");
+	}
+	return rate;
+}
+
 
 static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 {
@@ -79,8 +100,9 @@ static void cbk_trade(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
 
+	double rate = find_rate(tm, p_tranche);
+	p_tranche->setEcbRate(rate);
 	book.map_trades[key] = std::move(p_tranche);
-
 }
 
 
@@ -125,7 +147,6 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	{
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
-	book.map_forex[key] = std::move(p_tranche);
 
 	cnt = 0;
 	auto key2 = std::string(buf2) + "-" + std::to_string(cnt);
@@ -133,6 +154,10 @@ static void cbk_forex(const std::tm &tm, std::unique_ptr<tranche> &p_tranche)
 	{
 		key2 = std::string(buf2) + "-" + std::to_string(++cnt);
 	}
+
+	double rate = find_rate(tm, p_tranche);
+	p_tranche->setEcbRate(rate);
+	book.map_forex[key] = std::move(p_tranche);
 	book.map_forex_lut[key2] = book.map_forex[key];
 }
 
@@ -148,8 +173,9 @@ int main(int argc, char **argv)
 	//int tax_year = 2022;
 
 	/* this is 2023 */
-	std::string filename_transactions("/mnt/c/Development/ibkr-austria/U6443611_20230102_20231229.csv");
-	std::string filename_initial_holdings("/mnt/c/Development/ibkr-austria/Bestand_2022-12-31.csv");	
+	const std::string filename_rates("/mnt/c/Development/ibkr-austria/ecb_rates.csv");
+	const std::string filename_transactions("/mnt/c/Development/ibkr-austria/U6443611_20230102_20231229.csv");
+	const std::string filename_initial_holdings("/mnt/c/Development/ibkr-austria/Bestand_2022-12-31.csv");
 	int tax_year = 2023;
 
 	bool verbose = true;
@@ -159,6 +185,9 @@ int main(int argc, char **argv)
 	//CLI11_PARSE(app, argc, argv);
 
 	book.year = tax_year;
+
+	if (verbose) cout << "Opening file: " << filename_rates << endl;
+	book.rates.open(filename_rates);
 
 	if (verbose) cout << "Opening file: " << filename_initial_holdings << endl;
 	ibkr_parser parser1(filename_initial_holdings);
@@ -227,6 +256,7 @@ int main(int argc, char **argv)
 		pnl::equity_calc(ibkr::security::OPTION, currency, overall_profit, overall_losses, book);
 	}
 
+	/* 
 	printf("\n\nFUTURES\n\n");
 
 	overall_profit = 0.0;
@@ -236,6 +266,7 @@ int main(int argc, char **argv)
 	{
 		pnl::equity_calc(ibkr::security::FUTURE, currency, overall_profit, overall_losses, book);
 	}
+	*/
 
 	return 0;
 }

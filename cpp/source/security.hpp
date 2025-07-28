@@ -24,6 +24,7 @@ public:
 		CURRENCY,
 		OPTION,
 		FUTURE,
+		INTEREST, /* hack */ 
 	};
 
 	security() = delete;

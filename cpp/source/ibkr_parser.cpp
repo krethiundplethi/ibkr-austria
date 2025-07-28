@@ -8,6 +8,7 @@
 #include "ibkr_parser.hpp"
 #include "currency.hpp"
 #include "ledger.hpp"
+#include "security.hpp"
 #include <iostream>
 #include <iterator>
 #include <vector>
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <regex>
 #include <numeric>
+#include <string>
 
 
 namespace ibkr {
@@ -58,6 +60,17 @@ enum col
 	EARNING = 8,
 	BASIS = 9,
 	CODE = 11,
+};
+
+} /* ns forex */
+
+namespace interest {
+
+enum col
+{
+	CURRENCY = 2,
+	DATE = 3,
+	EARNING = 5,
 };
 
 } /* ns forex */
@@ -169,26 +182,28 @@ void ibkr_parser::parse(void)
 {
 	string line;
 	timepoint tp;
-	bool isTrade = false;
-	bool isForex = false;
-	bool isHolding = false;
-	bool isAction = false;
-
 	int temp_cnt = 0;
 
 	while (getline(istream, line))
 	{
 		std::tm tm; /* timestamp of each entry */
 
-		isTrade = line.rfind("Trades,Data,Order", 0) == 0;
-		isForex = line.rfind("Forex P/L Details,Data,Forex", 0) == 0;
-		isHolding = line.rfind("Initial Holding", 0) == 0;
-		isAction = line.rfind("Corporate Actions", 0) == 0;
+		const bool isTrade = line.rfind("Trades,Data,Order", 0) == 0;
+		const bool isForex = line.rfind("Forex P/L Details,Data,Forex", 0) == 0;
+		const bool isHolding = line.rfind("Initial Holding", 0) == 0;
+		const bool isAction = line.rfind("Corporate Actions", 0) == 0;
+		const bool isInterest = (line.rfind("Interest,Data", 0) == 0) && (line.rfind("Interest,Data,Total", 0) != 0);
+		const bool isTaxWHold = (line.rfind("Withholding Tax,Data", 0) == 0) && (line.rfind("Withholding Tax,Data,Total", 0) != 0);
+		const bool isDividend = (line.rfind("Dividends,Data", 0) == 0) && (line.rfind("Dividends,Data,Total", 0) != 0);
 
 		vector <string> v;
 
-		if (isTrade || isForex || isHolding || isAction)
+		if (isTrade || isForex || isHolding || isAction || isInterest || isTaxWHold || isDividend)
 		{
+			if (isInterest)
+			{
+				printf("");
+			}
 			vectorize(line, v);
 			/* fixme debug logging
 			cout << line << endl;
@@ -219,6 +234,26 @@ void ibkr_parser::parse(void)
 			p_tranche->setType(tranche::HOLD);
 
 			if (cbk_initial_holding) cbk_initial_holding(tm, p_tranche);
+		}
+		else if (isInterest || isTaxWHold || isDividend)
+		{
+			std::stringstream ss2(v[csv::interest::col::DATE]);
+			ss2 >> std::get_time(&tm, "%Y-%m-%d");
+			const currency::price earned = {	currency_from_string(v[csv::interest::col::CURRENCY]), 
+											stod(v[csv::interest::col::EARNING])
+										  };
+
+			const char *name = isInterest ? "Zinsen" : isTaxWHold ? "Quellensteuer" : isDividend ? "Dividende" : "Sonderzahlung";
+			security ie(name, currency::price {earned.unit, 1.0});
+			ie.setType(ibkr::security::INTEREST);
+			auto tr = std::make_unique<tranche>(ie, stod(v[csv::interest::col::EARNING]), 
+												earned,  currency::price {earned.unit, 0.0});
+			tr->setTimeStamp(tm);
+			if (earned.value > 0) tr->setType(tranche::BUY);
+			else tr->setType(tranche::SELL);
+			tr->makeAbsolute();
+
+			if (cbk_forex && ie.getPrice().unit != currency::EUR) cbk_forex(tm, tr);
 		}
 		else if (isAction &&
 				(v[csv::action::col::TYPE] == "Stocks") &&
@@ -296,7 +331,8 @@ void ibkr_parser::parse(void)
 
 				case trade::type::FUTURES:
 				{
-					p_tranche->getSecurity().setType(security::FUTURE);
+					p_tranche->getSecurity().setType(ibkr::security::FUTURE);
+
 					if (cbk_stock_trade)
 					{
 						cbk_stock_trade(tm, p_tranche);
@@ -344,11 +380,21 @@ void ibkr_parser::parse(void)
 
 			price.value = sign_earning * stod(v[column_earning]);
 
-			if ((v[csv::forex::col::CLASS].find(" margin") != std::string::npos) ||
-			    (v[csv::forex::col::CLASS].find(" Interest ") != std::string::npos)
-			)
+			
+			if (v[csv::forex::col::CLASS].find(" Interest ") != std::string::npos)
 			{
-				/* tbd */
+				/* Fixme: At the moment the separate entries are used with ECB exchange rates, not the Forex P/L details */
+			}
+			else if (v[csv::forex::col::CLASS].find(" margin") != std::string::npos)
+			{
+				cash.setName("MARGIN");
+				auto tr = std::make_unique<tranche>(cash, quanti, price, fee, false);
+				tr->setTimeStamp(tm);
+				if (quanti < 0) tr->setType(tranche::BUY);
+				else tr->setType(tranche::SELL);
+				tr->makeAbsolute();
+
+				if (cbk_forex) cbk_forex(tm, tr);
 			}
 			else if ((v[csv::forex::col::CLASS].find("(") == std::string::npos) &&
 				(v[csv::forex::col::CLASS].find("Net cash activity") == std::string::npos)) /* check if dividend */
@@ -411,6 +457,13 @@ void ibkr_parser::parse(void)
 					{
 						cash.setType(security::FUTURE);
 						quanti = stod(tokenized[1]); /* amount already set for FX */
+
+						/* future... is special. Can cost or earn forex */
+						if (((stod(v[csv::forex::col::QUANTI]) < 0.0) && (quanti < 0)) ||
+							((stod(v[csv::forex::col::QUANTI]) >= 0.0) && (quanti > 0)))
+							{
+								price.value = price.value * -1.0;
+							}
 					}
 					else
 					{
@@ -423,9 +476,16 @@ void ibkr_parser::parse(void)
 				tr->setTimeStamp(tm);
 				if (quanti < 0) tr->setType(tranche::BUY);
 				else tr->setType(tranche::SELL);
-				tr->makeAbsolute();
+				if (cash.getType() != security::FUTURE) /* hack. Futures selling also costs forex money. */
+				{
+					tr->makeAbsolute();
+				}
+				else
+				{
+					tr->setQuanti(abs(tr->getQuanti()));
+				}
 
-				if (tr->getSecurity().getName().find("9028.T") != std::string::npos)
+				if (tr->getSecurity().getName().find("GE") != std::string::npos)
 				{
 					printf("");
 				}
@@ -435,6 +495,7 @@ void ibkr_parser::parse(void)
 			}
 			else /* net cash activity */
 			{
+				/* disabled --> dividend etc. is already handled above 
 				cash.setName("NETCASH");
 				auto tr = std::make_unique<tranche>(cash, quanti, price, fee, false);
 				tr->setTimeStamp(tm);
@@ -443,6 +504,7 @@ void ibkr_parser::parse(void)
 				tr->makeAbsolute();
 
 				if (cbk_forex) cbk_forex(tm, tr);
+				*/
 			}
 		}
 		else

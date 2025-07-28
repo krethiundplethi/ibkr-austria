@@ -62,7 +62,7 @@ void equity_calc(
 		{
 			continue;
 		}
-		else if (symbol.find("9028.T") != std::string::npos)
+		else if (symbol.find("MRNA") != std::string::npos)
 		{
 			printf("");
 		}
@@ -132,7 +132,11 @@ void equity_calc(
 						printf("ERROR! Inconsistent Equity/Forex buy/sell");
 					}
 
-					if (it->second->isSell()) /* Forex sell = equity buy */
+					eur_paid += stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
+					eur_fee += stock_fee / t.getEcbRate();
+
+					/*
+					if (it->second->isSell()) // Forex sell = equity buy 
 					{
 						eur_fee_ = stock_fee * it->second->getPrice() / (stock_paid + stock_fee);
 						eur_paid += eur - eur_fee_;
@@ -144,6 +148,7 @@ void equity_calc(
 						eur_paid += eur + eur_fee_;
 						eur_fee += eur_fee_;
 					}
+					*/
 
 					int fill = it->second->getQuanti();
 					t.fill(fill);

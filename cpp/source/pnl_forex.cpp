@@ -73,7 +73,7 @@ void forex_calc(
 
 			if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 			{
-				if (t.getSecurity().getName() == "VMT")
+				if (t.getSecurity().getName() == "NGJ3")
 				{
 					printf("");
 				}
@@ -101,7 +101,7 @@ void forex_calc(
 
 				double stock_paid = 0.0;
 				double stock_fee = 0.0;
-				double eur_paid = t.getPrice();
+				double eur_paid = t.getPrice(); /* For PnL calculation, IBKR uses odd conversion rates. See below. */
 				double eur_fee = 0;
 
 				if (!found)
@@ -110,6 +110,21 @@ void forex_calc(
 					/* fixme: calculating back from EUR to the foreign currency is odd.
 					 * Is needed because for equity the "quantity" is not the pricetag but the amout of stock. */
 					stock_paid = t.getPrice() / t.getSecurity().getPrice();
+					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
+				}
+				else if (t.getSecurity().getType() == ibkr::security::FUTURE)
+				{
+					ibkr::tranche &order = *(it->second);
+					order.fill(t.getQuanti());
+
+					/* acshually we are only doing this to get the fee on the transaktion,
+					 * thats it. All other information is already in the forex table entry. */
+
+					stock_paid = t.getPrice(); /* future has a margin cose */
+					stock_fee = (t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
+
+					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
+					eur_fee = stock_fee / t.getEcbRate();
 				}
 				else if (t.getSecurity().getType() != ibkr::security::CURRENCY)
 				{
@@ -133,18 +148,8 @@ void forex_calc(
 					stock_paid = t.getQuanti() * order.getSecurity().getPrice(); /* what the stock paid/cost, excluding fees */
 					stock_fee = (t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
 
-					/* booking in eur is a bit tricky here because fees need to be extracted. */
-					if (t.isSell())
-					{
-						/* buying equity ... fee is already considered */
-						eur_fee = stock_fee * eur_paid / (stock_paid + stock_fee);
-						eur_paid -= eur_fee;
-					}
-					else
-					{
-						eur_fee = stock_fee * eur_paid / (stock_paid - stock_fee);
-						eur_paid += eur_fee;
-					}
+					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
+					eur_fee = stock_fee / t.getEcbRate();
 				}
 				else /* CURRENCY */
 				{
@@ -160,7 +165,6 @@ void forex_calc(
 					}
 					*/
 				}
-
 
 				double old_balance = data.balances[currency];
 				double old_balance_eur = data.balances_in_eur[currency];

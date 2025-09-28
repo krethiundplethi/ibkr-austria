@@ -9,7 +9,6 @@
 #define SOURCE_CURRENCY_H_
 
 #include <iostream>
-#include "string.h"
 
 namespace ibkr
 {
@@ -17,7 +16,8 @@ namespace ibkr
 namespace currency
 {
 
-enum class symbol {
+enum class symbol : uint8_t
+{
 	EUR,
 	USD,
 	AUD,
@@ -56,7 +56,7 @@ struct price
 };
 
 
-unit from_symbol(const symbol s);
+unit from_symbol(const symbol sym);
 
 
 std::ostream &operator<<(std::ostream &, const currency::price &);

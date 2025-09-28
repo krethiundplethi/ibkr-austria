@@ -28,7 +28,7 @@ std::string construct_key(std::tm const &tm, const char *security_name, const ch
 }
 
 
-void long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac)
+bool long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac)
 {
 	double long_part = 0.0;
 	double short_part = 0.0;
@@ -45,10 +45,13 @@ void long_and_short_fraction(double balance, double delta, double &long_frac, do
 	}
 	else
 	{
-		printf("Long/short Warning\n");
+		printf("Long/short Warning: balance %.2f delta %.2f long %.2f short %.2f\n", balance, delta, long_frac, short_frac);
 		long_frac = 1.0;
 		short_frac = 0.0;
+		return false;
 	}
+
+	return true;
 }
 
 }

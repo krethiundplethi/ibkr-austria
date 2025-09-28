@@ -1,6 +1,13 @@
 #IBKR privacy
 .csv
 
+cpp/.vscode/
+cpp/CMakeFiles/
+cpp/build/
+cpp/CMakeCache.txt
+cpp/cmake_install.cmake
+cpp/Makefile
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

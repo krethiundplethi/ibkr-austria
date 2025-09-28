@@ -23,6 +23,13 @@ namespace ibkr
 namespace pnl
 {
 
+struct performance
+{
+	double profit;
+	double loss;
+};
+
+
 struct inout_data
 {
 	int year = 1900;
@@ -38,8 +45,8 @@ struct inout_data
 };
 
 
-std::string construct_key(std::tm const &tm, char const *security_name, char const *currency, int cnt);
-void long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac);
+std::string construct_key(std::tm const &day, char const *security_name, char const *currency, int cnt);
+bool long_and_short_fraction(double balance, double delta, double &long_frac, double &short_frac);
 
 
 } /* namespace pnl */

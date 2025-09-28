@@ -6,8 +6,7 @@
  */
 
 #include "ledger.hpp"
-#include <iomanip>
-#include <chrono>
+#include <time.h>
 
 namespace ibkr {
 
@@ -29,17 +28,22 @@ std::ostream &operator<<(std::ostream &os, const ledger &l)
 {
 	vector <entry> const *deb = NULL;
 	vector <entry> const *cre = NULL;
+	char buf[26]; // asctime_s requires buffer of at least 26 chars
 
 	l.get_entries(&deb, &cre);
 
 	for(vector<entry>::const_iterator it = deb->begin(); it != deb->end(); ++it)
 	{
-		os << "debit date:" << asctime(&(it->tp)) << ", " << it->tr << std::endl;
+		asctime_s(buf, sizeof(buf), &(it->tp));
+		buf[strcspn(buf, "\n")] = '\0';
+		os << "debit date:" << buf << ", " << it->tr << std::endl;
 	}
 
 	for(vector<entry>::const_iterator it = cre->begin(); it != cre->end(); ++it)
 	{
-		os << "credit date:" << asctime(&(it->tp)) << ", " << it->tr << std::endl;
+		asctime_s(buf, sizeof(buf), &(it->tp));
+		buf[strcspn(buf, "\n")] = '\0';
+		os << "credit date:" << buf << ", " << it->tr << std::endl;
 	}
 
 	return os;

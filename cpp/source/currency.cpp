@@ -6,6 +6,7 @@
  */
 
 #include "currency.hpp"
+#include <ostream>
 
 namespace ibkr
 {
@@ -13,33 +14,33 @@ namespace currency
 {
 
 
-unit from_symbol(const symbol s)
+unit from_symbol(const symbol sym)
 {
-	unit u = UNKNOWN;
+	unit cur = UNKNOWN;
 
-	for (int i = 0; i < sizeof(match) / sizeof(match[0]); ++i)
+	for (auto unit_i : match)
 	{
-		if (match[i].id == s)
+		if (unit_i.id == sym)
 		{
-			u = match[i];
+			cur = unit_i;
 		}
 	}
 
-	return u;
+	return cur;
 }
 
 
-std::ostream &operator<<(std::ostream &os, const currency::price &p)
+std::ostream &operator<<(std::ostream &ostr, const currency::price &price)
 {
-	os << p.value << " " << p.unit.name;
-	return os;
+	ostr << price.value << " " << price.unit.name;
+	return ostr;
 }
 
 
-std::ostream &operator<<(std::ostream &os, const currency::unit &u)
+std::ostream &operator<<(std::ostream &ostr, const currency::unit &cur)
 {
-	os << " " << u.name;
-	return os;
+	ostr << " " << cur.name;
+	return ostr;
 }
 
 

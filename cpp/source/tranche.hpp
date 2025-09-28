@@ -13,7 +13,7 @@
 #include "security.hpp"
 #include "currency.hpp"
 
-#include <asm-generic/errno.h>
+//#include <asm-generic/errno.h>
 #include <iostream>
 #include <ctime>
 #include <memory>
@@ -29,7 +29,9 @@ public:
 	{
 		BUY,
 		SELL,
-		HOLD
+		HOLD,
+		SPLIT_IN,
+		SPLIT_OUT,
 	};
 
 	tranche() = delete;
@@ -46,17 +48,20 @@ public:
 	inline const double unfilled() const { return quanti - filled; }
 	inline const double getEcbRate() const { return ecb_rate; }
 	inline void fill(double fill) { filled += fill; }
-	inline void unfill(void) { filled = 0.0; }
+	inline void unfill() { filled = 0.0; }
 
 	inline const std::tm &getTimeStamp() const { return timestamp; }
 	inline void setTimeStamp(std::tm const &tm) { timestamp = tm; }
 
-	void makeAbsolute(void);
-	inline bool isSell(void) const { return ordertype == SELL; }
-	inline bool isHold(void) const { return ordertype == HOLD; }
+	void makeAbsolute();
+	inline bool isSell() const { return (ordertype == SELL) || (ordertype == SPLIT_OUT); }
+	inline bool isHold() const { return ordertype == HOLD; }
+	inline bool isSplit() const { return (ordertype == SPLIT_IN) || (ordertype == SPLIT_OUT); }
+	inline bool isSplitIn() const { return ordertype == SPLIT_IN; }
+	inline bool isSplitOut() const { return ordertype == SPLIT_OUT; }
 
-	inline void setQuanti(double d) { quanti = d; }
-	inline double getQuanti(void) { return quanti; }
+	inline void setQuanti(double quan) { quanti = quan; }
+	inline double getQuanti() { return quanti; }
 
 	~tranche() { };
 

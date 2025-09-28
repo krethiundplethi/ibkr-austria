@@ -7,6 +7,7 @@
 #include <set>
 #include <map>
 #include <memory>
+#include <cstdio>
 
 
 namespace ibkr
@@ -15,13 +16,10 @@ namespace ibkr
 namespace pnl
 {
 
-
-
-
 void forex_calc(
+	std::FILE *stream,
 	const ibkr::currency::unit &currency,
-	double &g_overall_profit,
-	double &g_overall_losses,
+	struct performance  &pnl,
 	inout_data &data
 );
 

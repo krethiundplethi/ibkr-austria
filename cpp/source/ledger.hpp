@@ -45,7 +45,7 @@ public:
 	ledger(const char *name) : name {name} {};
 	virtual ~ledger();
 
-	void add_entry(entry::type type, const timepoint &tp, const tranche &tr);
+	void add_entry(entry::type type, const timepoint &timep, const tranche &trch);
 	void get_entries(std::vector <entry> const ** debit, std::vector <entry> const ** credit) const
 	{
 		*debit = const_cast<std::vector <entry> *>(&debit_entries);

@@ -63,20 +63,13 @@ void equity_calc(
 			continue;
 		}
 		
-		if (symbol.find("CYBN") != std::string::npos)
-		{
-			std::fprintf(stream, "");
-		}
-		else
-		{
-			currency_found = true;
-		}
+		currency_found = true;
 
 		if (prev_symbol != tran.getSecurity().getName())
 		{
-			std::fprintf(stream, "Symbol               ");
-			std::fprintf(stream, "Datum      1   Menge Kurs(%s)  Preis(EUR) Gebühr Bestand    Kumm(EUR)    glD(EUR)  Ansatz(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)", tran.getSecurity().getPrice().unit.name);
-			std::fprintf(stream, "      SummGuV   SummGewinn  SummVerlust");
+			std::fprintf(stream, "              Symbol");
+			std::fprintf(stream, "      Datum T   Menge Kurs(%s)  Preis(EUR) Gebühr(EUR) Bestand    Kumm(EUR)    glD(EUR)  Ansatz(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)", tran.getSecurity().getPrice().unit.name);
+			std::fprintf(stream, "      ∑GuV(€)   ∑Gewinn(€)  ∑Verlust(€)");
 			std::fprintf(stream, "\n");
 		}
 
@@ -131,6 +124,7 @@ void equity_calc(
 				if (it == data.map_forex_lut.end())
 				{
 					printf("****warning: Key %s not found\n", key.c_str());
+					if (tran.getQuanti() < 1.0) { printf("FIXME: Implement stock split cash settlement\n"); }
 					pieces = tran.getQuanti();
 					eur_paid += pieces * tran.getSecurity().getPrice() / tran.getEcbRate(); /* Use tax correct ECB rates. */
 					eur_fee = 0.0;
@@ -177,7 +171,7 @@ void equity_calc(
 
 		const bool warning = !long_and_short_fraction(balances[symbol], pieces * (tran.isSell() ? -1.00 : 1.00), long_frac, short_frac);
 		if (warning) { 
-			printf("Warning @%d.%d symbol: %s \n", time.tm_mday, time.tm_mon, symbol.c_str()); 
+			printf("Warning @day:%d mon:%d symbol:%s \n", time.tm_mday, time.tm_mon + 1, symbol.c_str()); 
 		};
 		balances[symbol] += pieces * (tran.isSell() ? -1.00 : 1.00);
 
@@ -243,16 +237,16 @@ void equity_calc(
 		currency_fees += eur_fee;
 
 		std::fprintf(stream, "%-20s ", symbol.c_str()); /* symbol */
-		std::fprintf(stream, "%4d-%02d %02d ",  data.year, time.tm_mon + 1, time.tm_mday); /* datum */
+		std::fprintf(stream, "%4d-%02d-%02d ",  data.year, time.tm_mon + 1, time.tm_mday); /* datum */
 		std::fprintf(stream, "%-1s ", tran.getType() == tranche::HOLD ? "H" : tran.isSell() ? "V" : "K");
 		std::fprintf(stream, "%7.0f %9.3f ", tran.getQuanti() * (tran.isSell() ? -1.0 : 1.0), tran.getSecurity().getPrice().value); /* Menge Kurs */
-		std::fprintf(stream, "%11.2f %6.2f %7.0f ", eur_paid, eur_fee, balances[symbol]); /* Preis Gebühr Bestand */
+		std::fprintf(stream, "%11.2f %11.2f %7.0f ", eur_paid, eur_fee, balances[symbol]); /* Preis Gebühr Bestand */
 
 		if (stock_split_finalize)
 		{
 			if (balances_in_eur[symbol] == balances_in_eur[split_symbol])
 			{
-				printf("WARNING: Suspicious split 1:1");
+				printf("WARNING: Suspicious split 1:1\n");
 			}
 			balances_in_eur[symbol] = balances_in_eur[split_symbol];
 			balances[symbol] = balances[split_symbol];
@@ -292,7 +286,7 @@ void equity_calc(
 			pnl.loss += balances_losses[prev_symbol];
 			pnl.profit += balances_profit[prev_symbol];
 			std::fprintf(stream, "%-20s ", symbol.c_str());
-			std::fprintf(stream, "%4d-12 31 = ======= ========= =========== %6.2f %7.0f ", data.year, balances_fees[symbol], balances[symbol] ); /* menge kurs preis */
+			std::fprintf(stream, "%4d-12 31 = ======= ========= =========== %11.2f %7.0f ", data.year, balances_fees[symbol], balances[symbol] ); /* menge kurs preis */
 
 			std::fprintf(stream, "%12.2f ", balances_in_eur[symbol]); /* Kumm(EUR) */
 
@@ -316,8 +310,8 @@ void equity_calc(
 	if (currency_found)
 	{
 		std::fprintf(stream, "                     "); /* symbol */
-		std::fprintf(stream, "%4d-12 31 = ======= == %s == =========== ", data.year, currency.name);
-		std::fprintf(stream, "%6.2f                                             %9.2f", currency_fees, currency_guv);
+		std::fprintf(stream, "%4d-12-31 = ======= == %s == =========== ", data.year, currency.name);
+		std::fprintf(stream, "%11.2f                                               %12.2f", currency_fees, currency_guv);
 		std::fprintf(stream, "\n");
 	}
 }

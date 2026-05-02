@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <time.h>
+
 
 using namespace std;
 using namespace ibkr;
@@ -78,7 +78,6 @@ double find_rate(const std::tm &day, std::unique_ptr<tranche> &p_tranche)
 	
 	for (int i = 0; (i < 5) && (rate < 0.0); i++)
 	{
-		mktime(&new_tm);
 		rate = book.rates.get(p_tranche->getPrice().unit.name, new_tm);
 		new_tm.tm_mday++;
 	}
@@ -108,8 +107,15 @@ void cbk_trade(const std::tm &day, std::unique_ptr<tranche> &p_tranche)
 		key = std::string(buf) + "-" + std::to_string(++cnt);
 	}
 
-	const double rate = find_rate(day, p_tranche);
-	p_tranche->setEcbRate(rate);
+	if (p_tranche->getPrice().unit.id != currency::symbol::EUR)
+	{
+		const double rate = find_rate(day, p_tranche);
+		p_tranche->setEcbRate(rate);
+	}
+	else 
+	{
+		p_tranche->setEcbRate(1.0);
+	}
 	book.map_trades[key] = std::move(p_tranche);
 }
 
@@ -192,14 +198,21 @@ int main(int argc, char **argv)
 {
 	CLI::App app{"Tax calc"};
 	/* this was 2022 */
-	//std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\U6443611_20220103_20221230.csv");
+	//std::string filename_transactions("C:\\Development\\github\\ibkr-austria\\Uxxxxxxx_20220103_20221230.csv");
 	//std::string filename_initial_holdings("C:\\Development\\github\\ibkr-austria\\Bestand_2021-12-31.csv");
 	//int tax_year = 2022;
 
 	/* this is 2024 */
-	std::string filename_rates;//{"c:/Development/ibkr-austria/ecb_rates_2024.csv"};
-	std::string filename_transactions;//{"c:/Development/ibkr-austria/U6443611_20240101_20241231.csv"};
-	std::string filename_initial_holdings;//{"c:/Development/ibkr-austria/Bestand_2023-12-31.csv"};
+	//std::string filename_rates{"/mnt/c/Development/ibkr-austria/ecb_rates_2024.csv"};
+	//std::string filename_transactions{"/mnt/c/Development/ibkr-austria/Uxxxxxxx_20240101_20241231.csv"};
+	//std::string filename_initial_holdings{"/mnt/c/Development/ibkr-austria/Bestand_2023-12-31.csv"};
+	//book.year = 2024;
+
+	/* this is 2025 */
+	std::string filename_rates{"/mnt/c/Development/ibkr-austria/ecb_rates_2025.csv"};
+	std::string filename_transactions{"/mnt/c/Development/ibkr-austria/Uxxxxxxx_20250101_20251231.csv"};
+	std::string filename_initial_holdings{"/mnt/c/Development/ibkr-austria/Bestand_2024-12-31.csv"};
+	book.year = 2025;
 
 	bool verbose = true;
 	app.add_option("-i,--initial", filename_initial_holdings, "csv file with initial holding")
@@ -216,9 +229,7 @@ int main(int argc, char **argv)
 
 	app.add_option("-v,--verbose", verbose, "be verbose");
 
-	CLI11_PARSE(app, argc, argv);
-
-	book.year = 2024;
+	//CLI11_PARSE(app, argc, argv);
 
 	if (verbose)
 	{

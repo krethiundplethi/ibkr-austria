@@ -6,6 +6,7 @@
  */
 
 #include "security.hpp"
+#include <cstring>
 #include <map>
 
 
@@ -55,16 +56,16 @@ bool normalized_option_key(std::string const &src_in, char *dst, size_t len)
 
 	if (foundpc == (src.length() - 1)) /*assume QQQ 19AUG22 312.5 P*/
 	{
-		char *p = (char *) strchr(src.c_str(), ' ');
-		if (p)
+		char *ptr = (char *) strchr(src.c_str(), ' ');
+		if (ptr)
 		{
-			*p = '\0';
+			*ptr = '\0';
 			strncpy(symbol, src.c_str(), 7);
-			ret = sscanf(p + 1, "%2u%3s%2u %u.%u %c", &d, (char*) &mon, &yy, &val, &frac, &p_or_c);
+			ret = sscanf(ptr + 1, "%2u%3s%2u %u.%u %c", &d, (char*) &mon, &yy, &val, &frac, &p_or_c);
 			if (ret == 4) /* no dot, no fraction... try again */
 			{
 				frac = 0;
-				ret = sscanf(p + 1, "%2u%3s%2u %u %c", &d, (char *) &mon, &yy, &val, &p_or_c);
+				ret = sscanf(ptr + 1, "%2u%3s%2u %u %c", &d, (char *) &mon, &yy, &val, &p_or_c);
 				ret++; /* pretend its six... for the if afterwards */
 			}
 			const auto iter(months.find(mon));
@@ -80,17 +81,17 @@ bool normalized_option_key(std::string const &src_in, char *dst, size_t len)
 		ret = sscanf(src.c_str(), "%6s%2u%2u%2u%c%05u%3u", symbol, &yy, &m, &d, &p_or_c, &val, &frac);
 		if (ret == 7)
 		{
-			if (!(frac % 10)) frac /= 10; /* remove trailing zeros 0.500 --> 0.5 */
-			if (!(frac % 10)) frac /= 10;
-			char *p = strchr(symbol, ' ');
-			if (p) *p = '\0'; /* strip blank and all after */
+			if (!(frac % 10)) { frac /= 10; } /* remove trailing zeros 0.500 --> 0.5 */
+			if (!(frac % 10)) { frac /= 10; }
+			char *ptr = strchr(symbol, ' ');
+			if (ptr) { *ptr = '\0'; } /* strip blank and all after */
 			success = true;
 		}
 	}
 
 
-	if (success) snprintf(dst, len, "%s%2u%02u%02u%c%u.%u", symbol, yy, m, d, p_or_c, val, frac);
-	else  strncpy(dst, src.c_str(), len);
+	if (success) { snprintf(dst, len, "%s%2u%02u%02u%c%u.%u", symbol, yy, m, d, p_or_c, val, frac); }
+	else { strncpy(dst, src.c_str(), len); }
 
 	return success;
 }

@@ -34,6 +34,7 @@ void RateParser::parse(std::istream& stream)
 		
 		while (std::getline(headerStream, cell, ','))
 		{
+			cell.erase(cell.find_last_not_of(" \t\r\n") + 1);
 			currencies.push_back(cell);
 		}
 	}

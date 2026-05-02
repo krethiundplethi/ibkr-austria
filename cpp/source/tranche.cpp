@@ -20,27 +20,28 @@ tranche::tranche(const security &sec, double quanti, const  currency::price pric
 	timestamp.tm_mon = 0;
 	timestamp.tm_mday = 0;
 	filled = 0.0;
+	ecb_rate = 1.0;
 
 	ordertype = sell ? SELL : BUY;
 }
 
 
-void tranche::makeAbsolute(void)
+void tranche::makeAbsolute()
 {
-	if (price.value < 0) price.value *= -1.0;
-	if (fee.value < 0) fee.value *= -1.0;
-	if (quanti < 0) quanti *= -1.0;
+	if (price.value < 0) { price.value *= -1.0; }
+	if (fee.value < 0) { fee.value *= -1.0; }
+	if (quanti < 0) { quanti *= -1.0; }
 }
 
-std::ostream &operator<<(std::ostream &os, const tranche &t)
+std::ostream &operator<<(std::ostream &out, const tranche &trn)
 {
-	os << "Tranche ";
-	if (t.isSell()) os << "(S) ";
-	else if (t.isHold()) os << "(H) ";
-	else os << "(B) ";
+	out << "Tranche ";
+	if (trn.isSell()) out << "(S) ";
+	else if (trn.isHold()) out << "(H) ";
+	else out << "(B) ";
 
-	os << std::setw(4) << t.getSecurity() << " stk: " << t.getQuanti() << " Price: " << t.getPrice() << " Fee: " << t.getFee();
-	return os;
+	out << std::setw(4) << trn.getSecurity() << " stk: " << trn.getQuanti() << " Price: " << trn.getPrice() << " Fee: " << trn.getFee();
+	return out;
 }
 
 
@@ -73,8 +74,8 @@ bool tranche_compare(std::shared_ptr<ibkr::tranche> tr1, std::shared_ptr<ibkr::t
 	if (tr1->isSplit() && !tr2->isSplit()) { return true; }
 	if (tr2->isSplit() && !tr1->isSplit()) { return false; }
 
-	//if (tr1->isSplitOut() && !tr2->isSplitOut()) { return true; }
-	//if (tr2->isSplitOut() && !tr1->isSplitOut()) { return false; }
+	if (tr1->isSplitIn() && !tr2->isSplitIn()) { return true; }
+	if (tr2->isSplitIn() && !tr1->isSplitIn()) { return false; }
 
 	return false;
 }

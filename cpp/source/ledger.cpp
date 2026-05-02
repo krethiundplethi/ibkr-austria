@@ -6,7 +6,7 @@
  */
 
 #include "ledger.hpp"
-#include <time.h>
+#include <ctime>
 
 namespace ibkr {
 
@@ -15,38 +15,36 @@ ledger::~ledger()
 }
 
 
-void ledger::add_entry(entry::type type, const timepoint &tp, const tranche &tr)
+void ledger::add_entry(entry::type type, const timepoint &timep, const tranche &trch)
 {
 	if (type == entry::type::CREDIT)
 	{
-		credit_entries.push_back(entry(type, tp, tr));
+		credit_entries.push_back(entry(type, timep, trch));
 	}
 }
 
 
-std::ostream &operator<<(std::ostream &os, const ledger &l)
+std::ostream &operator<<(std::ostream &out, const ledger &lgr)
 {
-	vector <entry> const *deb = NULL;
-	vector <entry> const *cre = NULL;
-	char buf[26]; // asctime_s requires buffer of at least 26 chars
+	vector <entry> const *deb = nullptr;
+	vector <entry> const *cre = nullptr;
+	char buf[64];
 
-	l.get_entries(&deb, &cre);
+	lgr.get_entries(&deb, &cre);
 
-	for(vector<entry>::const_iterator it = deb->begin(); it != deb->end(); ++it)
+	for(const auto & ite : *deb)
 	{
-		asctime_s(buf, sizeof(buf), &(it->tp));
-		buf[strcspn(buf, "\n")] = '\0';
-		os << "debit date:" << buf << ", " << it->tr << std::endl;
+		std::strftime(buf, sizeof(buf), "%c", &(ite.tp));
+		out << "debit date:" << buf << ", " << ite.tr << std::endl;
 	}
 
-	for(vector<entry>::const_iterator it = cre->begin(); it != cre->end(); ++it)
+	for(const auto & ite : *cre)
 	{
-		asctime_s(buf, sizeof(buf), &(it->tp));
-		buf[strcspn(buf, "\n")] = '\0';
-		os << "credit date:" << buf << ", " << it->tr << std::endl;
+		std::strftime(buf, sizeof(buf), "%c", &(ite.tp));
+		out << "credit date:" << buf << ", " << ite.tr << std::endl;
 	}
 
-	return os;
+	return out;
 }
 
 } /* namespace ibkr */

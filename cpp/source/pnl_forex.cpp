@@ -14,7 +14,7 @@ namespace {
 void print_fee(std::FILE *stream, int year, int mon, int day, double fx, double fx_bal, double eur, double eur_bal)
 {
 	/*       2022-07 ; Day   ; Symbol  ; K/V/WP ; */
-	fprintf(stream, "%4d-%02d %02d FEE                  F      ",  year, mon, day);
+	fprintf(stream, "%4d-%02d-%02d FEE                  F      ",  year, mon, day);
 	/*      USD     ; Bestand ; ; Soll EUR ; Haben EUR ; ; EUR gl.D.s. ;   Kurs    ; ; Ansatz EUR ; GuV ; Gebühren*/
 	fprintf(stream, "%11.02f %11.02f %10.02f            %11.02f %10.06f ", -fx, fx_bal, eur, eur_bal, eur_bal / fx_bal);
 }
@@ -63,9 +63,9 @@ void forex_calc(
 {
     for (int month = 0; month < 12; ++month)
     {
-        fprintf(stream, "%4d-%02d D  Symbol               K/V/WP %11s "
+        fprintf(stream, "     Datum               Symbol K/V/WP %11s "
                "    Bestand  Soll(EUR) Haben(EUR)    glD(EUR) "
-               "      Kurs Basis(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)\n", data.year, month + 1, currency.name);
+               "      Kurs Basis(EUR)     GuV(EUR)  Gewinn(EUR) Verlust(EUR)\n", currency.name);
 
 		for (auto const &elem: data.map_forex)
 		{
@@ -74,11 +74,6 @@ void forex_calc(
 
 			if ((t.getPrice().unit.id == currency.id) && (tm.tm_mon == month))
 			{
-				if (t.getSecurity().getName() == "NGJ3")
-				{
-					fprintf(stream, "");
-				}
-
 				auto it = data.map_trades.end();
 				bool found = false;
 
@@ -105,15 +100,8 @@ void forex_calc(
 				double eur_paid = t.getPrice(); /* For PnL calculation, IBKR uses odd conversion rates. See below. */
 				double eur_fee = 0;
 
-				if (!found)
-				{
-					//fprintf(stream, "** WARNING: No corresponding %s order found **\n", key.c_str());
-					/* fixme: calculating back from EUR to the foreign currency is odd.
-					 * Is needed because for equity the "quantity" is not the pricetag but the amout of stock. */
-					stock_paid = t.getPrice() / t.getSecurity().getPrice();
-					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
-				}
-				else if (t.getSecurity().getType() == ibkr::security::FUTURE)
+
+				if (t.getSecurity().getType() == ibkr::security::FUTURE)
 				{
 					ibkr::tranche &order = *(it->second);
 					order.fill(t.getQuanti());
@@ -121,11 +109,28 @@ void forex_calc(
 					/* acshually we are only doing this to get the fee on the transaktion,
 					 * thats it. All other information is already in the forex table entry. */
 
-					stock_paid = t.getPrice(); /* future has a margin cose */
-					stock_fee = (t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
+					stock_paid = (t.getPrice() + order.getFee()) * (t.isSell() ? -1.00 : 1.00); /* future has a margin cost */
+					stock_fee = order.getFee(); //(t.getPrice() / t.getSecurity().getPrice() - stock_paid) * (t.isSell() ? 1.00 : -1.00);
 
 					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
 					eur_fee = stock_fee / t.getEcbRate();
+				}
+				else if (t.getSecurity().getType() == ibkr::security::INTEREST ||
+						 t.getSecurity().getName() == "MARGIN"
+						)
+				{
+					/* fixme: calculating back from EUR to the foreign currency is odd.
+					* Is needed because for equity the "quantity" is not the pricetag but the amout of stock. */
+					stock_paid = t.getPrice() / t.getSecurity().getPrice();
+					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
+				}
+				else if (!found)
+				{
+					printf("Warning: No corresponding %s order found **\n", key.c_str());
+					/* fixme: calculating back from EUR to the foreign currency is odd.
+					* Is needed because for equity the "quantity" is not the pricetag but the amout of stock. */
+					stock_paid = t.getPrice() / t.getSecurity().getPrice();
+					eur_paid = stock_paid / t.getEcbRate(); /* Use tax correct ECB rates. */
 				}
 				else if (t.getSecurity().getType() != ibkr::security::CURRENCY)
 				{
@@ -174,7 +179,7 @@ void forex_calc(
 
 				const bool warning = !long_and_short_fraction(data.balances[currency], stock_paid * (t.isSell() ? -1.00 : 1.00), long_frac, short_frac);
 				if (warning) {
-					printf("Warning @%d.%d symbol: %s \n", tm.tm_mday, tm.tm_mon, currency.name);
+					printf("Long/short forex warning @%d.%d symbol:%s long:%f short:%f\n", tm.tm_mday, tm.tm_mon, currency.name, long_frac, short_frac);
 				};
 				data.balances[currency] += stock_paid * (t.isSell() ? -1.00 : 1.00);
 
@@ -231,7 +236,7 @@ void forex_calc(
 					data.balances_losses[currency] += guv;
 				}
 
-				fprintf(stream, "%4d-%02d %02d ",  data.year, month+1, tm.tm_mday);
+				fprintf(stream, "%4d-%02d-%02d ",  data.year, month+1, tm.tm_mday);
 				fprintf(stream, "%-20s ", t.getSecurity().getName().c_str());
 				fprintf(stream, "%-6s ", transaction_code(t));
 

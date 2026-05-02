@@ -38,14 +38,16 @@ bool long_and_short_fraction(double balance, double delta, double &long_frac, do
 	else if ((balance > 0) && ((balance + delta) < 0)) { long_part = balance; short_part = std::abs(balance + delta); }
 	else if ((balance < 0) && ((balance + delta) > 0)) { long_part = balance + delta; short_part = std::abs(balance); }
 
-	if ((long_part != 0.0) || (short_part != 0.0))
+	if ((std::abs(long_part) > 0.000001) || (std::abs(short_part) > 0.000001))
 	{
 		long_frac = long_part / (long_part + short_part);
 		short_frac = short_part / (long_part + short_part);
 	}
 	else
 	{
-		printf("Long/short Warning: balance %.2f delta %.2f long %.2f short %.2f\n", balance, delta, long_frac, short_frac);
+		if (std::abs(long_frac + short_frac - 1.0) > 0.00001) {
+			printf("long_and_short_fraction warning: balance:%.2f delta:%.2f long_frac:%.2f short_frac:%.2f\n", balance, delta, long_frac, short_frac);
+		}
 		long_frac = 1.0;
 		short_frac = 0.0;
 		return false;

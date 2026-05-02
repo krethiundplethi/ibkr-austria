@@ -16,7 +16,7 @@ namespace ibkr
 namespace currency
 {
 
-enum class symbol : uint8_t
+enum class symbol
 {
 	EUR,
 	USD,
@@ -38,10 +38,9 @@ struct unit
 	symbol id;
 	const char *name;
 
-	bool operator<(const unit &r) const { return id < r.id; }
-	bool operator==(const unit &r) const { return id == r.id; }
-	bool operator!=(const unit &r) const { return !(*this == r); }
-
+	bool operator<(const unit &rhs) const { return id < rhs.id; }
+	bool operator==(const unit &rhs) const { return id == rhs.id; }
+	bool operator!=(const unit &rhs) const { return !(*this == rhs); }
 };
 
 
@@ -56,7 +55,7 @@ struct price
 };
 
 
-unit from_symbol(const symbol sym);
+unit from_symbol(symbol sym);
 
 
 std::ostream &operator<<(std::ostream &, const currency::price &);
